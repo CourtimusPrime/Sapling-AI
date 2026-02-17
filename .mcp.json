@@ -2,6 +2,13 @@
   "mcpServers": {
     "forge_vscode": {
       "url": "http://localhost:10384/mcp"
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
     }
   }
 }
