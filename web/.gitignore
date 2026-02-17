@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local sqlite data
+sapling.db
+sapling.db-shm
+sapling.db-wal
