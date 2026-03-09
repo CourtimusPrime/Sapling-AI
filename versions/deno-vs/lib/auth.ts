@@ -22,3 +22,20 @@ export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 });
+
+/** Parse the `auth` JWT cookie from a standard Request and verify it.
+ *  Returns the user payload, or null if absent/invalid. */
+export async function getAuthUser(req: Request): Promise<AuthUser | null> {
+  const cookieHeader = req.headers.get("cookie") ?? "";
+  const match = /(?:^|;\s*)auth=([^;]+)/.exec(cookieHeader);
+  if (!match) return null;
+  const token = decodeURIComponent(match[1]);
+  const secret = new TextEncoder().encode(Deno.env.get("AUTH_JWT_SECRET") ?? "dev-secret");
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    if (!payload.sub || typeof payload.email !== "string") return null;
+    return { id: payload.sub, email: payload.email };
+  } catch {
+    return null;
+  }
+}
