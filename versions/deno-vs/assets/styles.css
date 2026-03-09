@@ -9,12 +9,12 @@
 button {
   color: inherit;
 }
-button, [role="button"] {
+button,
+[role="button"] {
   cursor: pointer;
 }
 code {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
   font-size: 1em;
 }

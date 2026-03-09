@@ -6,14 +6,16 @@
     "dev": "vite",
     "build": "vite build",
     "start": "deno serve -A _fresh/server.js",
-    "update": "deno run -A -r jsr:@fresh/update ."
+    "update": "deno run -A -r jsr:@fresh/update .",
+    "db:generate": "node ./node_modules/.bin/drizzle-kit generate",
+    "db:migrate": "deno run -A db/migrate.ts"
   },
   "lint": {
     "rules": {
       "tags": ["fresh", "recommended"]
     }
   },
-  "exclude": ["**/_fresh/*"],
+  "exclude": ["**/_fresh/*", "drizzle.config.ts"],
   "imports": {
     "@/": "./",
     "fresh": "jsr:@fresh/core@^2.2.0",
