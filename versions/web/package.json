@@ -24,6 +24,7 @@
     "@xyflow/react": "^12.10.0",
     "ai": "^6.0.86",
     "ansi-to-react": "^6.2.6",
+    "better-sqlite3": "^12.6.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -49,6 +50,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -62,6 +64,7 @@
     "unrs-resolver"
   ],
   "trustedDependencies": [
+    "better-sqlite3",
     "sharp",
     "unrs-resolver"
   ]
