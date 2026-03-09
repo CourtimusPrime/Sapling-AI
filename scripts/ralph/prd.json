@@ -97,8 +97,8 @@
         "Typecheck passes"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "zod and jose added as npm deps. lib/hash.ts implements PBKDF2 via Web Crypto API (hashPassword/verifyPassword). api/routes/auth.ts implements POST /api/auth/signup with Zod validation, duplicate email check, password hashing, user insert, JWT signing (HS256, 7d expiry), and httpOnly cookie. api/app.ts mounts authRouter at /auth."
     },
     {
       "id": "US-007",

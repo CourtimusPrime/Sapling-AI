@@ -16,7 +16,20 @@
 - Drizzle client is in `db/client.ts`, exports `db` — uses `drizzle-orm/libsql` driver with `@libsql/client/node`
 - UnoCSS: add `"unocss": "npm:unocss@^0.65.3"` and `"unocss/vite": "npm:unocss@^0.65.3/vite"` to deno.json imports; configure in vite.config.ts (not fresh.config.ts); import `virtual:uno.css` in client.ts
 - Biome: add `"@biomejs/biome": "npm:@biomejs/biome@^1.9.4"` to deno.json; run `deno install --allow-scripts=npm:@biomejs/biome` (regular deno install ignores the postinstall script, no binary is created); `deno task lint` = `./node_modules/.bin/biome check .`
+- Auth: `jose` (npm:jose@^5) for JWT signing/verification; `zod` (npm:zod@^3) for request validation; password hashing via PBKDF2 in lib/hash.ts (Web Crypto API); auth routes in api/routes/auth.ts, mounted via `api.route("/auth", authRouter)` in api/app.ts
+- Drizzle select single row: `const [row] = await db.select(...).from(table).where(...).limit(1);` (async, returns array)
+- JWT cookie: `setCookie(c, "auth", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: ... })` from `hono/cookie`
 
+---
+
+## 2026-03-09 - US-006
+- What was implemented: POST /api/auth/signup endpoint with Zod body validation, PBKDF2 password hashing (Web Crypto API), duplicate email check (409), user row insert with random UUID, JWT signing via jose (HS256, 7d expiry, AUTH_JWT_SECRET env var), httpOnly cookie set on success, { id, email } returned in body
+- Files changed: versions/deno-vs/deno.json (added zod, jose deps), versions/deno-vs/deno.lock, versions/deno-vs/lib/hash.ts (new — hashPassword/verifyPassword), versions/deno-vs/api/routes/auth.ts (new — signup route), versions/deno-vs/api/app.ts (mounts authRouter)
+- **Learnings for future iterations:**
+  - jose JWT signing: `new SignJWT({ sub, email }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("7d").sign(secret)` where secret = `new TextEncoder().encode(AUTH_JWT_SECRET)`
+  - Hono cookie: import `setCookie` from `"hono/cookie"` — not from `"hono"`
+  - Drizzle async select single row: `const [row] = await db.select().from(table).where(...).limit(1)` — result is an array, destructure the first element
+  - Biome enforces alphabetical import ordering — use `biome check --write .` to auto-fix after creating new files
 ---
 
 ## 2026-03-09 - US-005
