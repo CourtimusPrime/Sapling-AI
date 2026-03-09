@@ -30,8 +30,8 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Hono app instance lives in api/app.ts and uses .basePath('/api'). The catch-all route routes/api/[...path].ts uses define.handlers() function form (RouteHandler union type supports HandlerFn). The old routes/api/[name].tsx scaffold was removed."
     },
     {
       "id": "US-003",

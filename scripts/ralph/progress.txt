@@ -4,11 +4,26 @@
 - utils.ts uses createDefine<State>() to create typed helpers (define.page, define.handlers, define.middleware)
 - deno task dev = vite dev server; deno task build = vite build; deno task start = deno serve _fresh/server.js
 - Pre-commit check: `deno check **/*.ts **/*.tsx` from versions/deno-vs/ for typecheck
+- Hono API app lives in api/app.ts, uses `.basePath("/api")`, routes defined without /api prefix (e.g. api.get("/health", ...))
+- Fresh 2 define.handlers() accepts either a method-keyed object OR a plain function (HandlerFn) that handles all HTTP methods
+- Catch-all Fresh route for Hono: routes/api/[...path].ts with `define.handlers((ctx) => api.fetch(ctx.req))`
+- `nodeModulesDir: "manual"` requires running `deno install` after adding npm dependencies to deno.json
 
 ---
 
 # Ralph Progress Log
 Started: Mon Mar  9 20:53:05 +04 2026
+---
+
+## 2026-03-09 - US-002
+- What was implemented: Hono 4.12.5 added as npm dependency; api/app.ts created with Hono instance using .basePath("/api") and GET /api/health route; routes/api/[...path].ts created as Fresh catch-all delegating to Hono via define.handlers((ctx) => api.fetch(ctx.req)); old example route routes/api/[name].tsx deleted
+- Files changed: versions/deno-vs/deno.json (added hono), versions/deno-vs/deno.lock (hono locked), versions/deno-vs/api/app.ts (new), versions/deno-vs/routes/api/[...path].ts (new), versions/deno-vs/routes/api/[name].tsx (deleted)
+- **Learnings for future iterations:**
+  - Fresh 2's RouteHandler type is a union of HandlerFn | HandlerByMethod — define.handlers() accepts a plain function (not just method-keyed object), which is the right pattern for catch-all delegation to Hono
+  - Fresh 2 ctx.req is the original standard Request object (confirmed from Fresh 2 source) — pass it directly to Hono's fetch()
+  - `deno check **/*.ts **/*.tsx` glob pattern does NOT expand to files with [...] brackets in filename — verify catch-all routes separately with `deno check "routes/api/[...path].ts"`
+  - With nodeModulesDir: "manual", run `deno install` after adding npm deps to get them into node_modules/
+  - All future API routes should be added to api/app.ts (or imported there)
 ---
 
 ## 2026-03-09 - US-001
