@@ -1,3 +1,24 @@
+## Codebase Patterns
+- This project uses Fresh 2 (not Fresh 1). Fresh 2 uses vite.config.ts instead of fresh.config.ts, and does not include a dev.ts — the dev server runs via `deno task dev` which calls vite directly.
+- Fresh 2 app entry point is main.ts (creates App instance, adds middleware, calls app.fsRoutes())
+- utils.ts uses createDefine<State>() to create typed helpers (define.page, define.handlers, define.middleware)
+- deno task dev = vite dev server; deno task build = vite build; deno task start = deno serve _fresh/server.js
+- Pre-commit check: `deno check **/*.ts **/*.tsx` from versions/deno-vs/ for typecheck
+
+---
+
 # Ralph Progress Log
 Started: Mon Mar  9 20:53:05 +04 2026
+---
+
+## 2026-03-09 - US-001
+- What was implemented: Fresh 2 project scaffolded in versions/deno-vs/ using `deno run -A jsr:@fresh/init . --force`
+- Files changed: versions/deno-vs/.gitignore, README.md, assets/styles.css, client.ts, components/Button.tsx, deno.json, deno.lock, islands/Counter.tsx, main.ts, routes/_app.tsx, routes/api/[name].tsx, routes/index.tsx, static/favicon.ico, static/logo.svg, utils.ts, vite.config.ts
+- **Learnings for future iterations:**
+  - Fresh 2 does NOT use fresh.config.ts or dev.ts — PRD acceptance criteria were written for Fresh 1. Fresh 2 uses vite.config.ts and runs vite directly.
+  - Fresh 2 sets nodeModulesDir: "manual" in deno.json; dependencies are in node_modules/ but via Deno's npm/jsr resolution.
+  - deno.json imports map uses "fresh" -> "jsr:@fresh/core@^2.2.0" and "@fresh/plugin-vite" for the Vite integration.
+  - `deno check **/*.ts **/*.tsx` from the project root checks types for all TS/TSX files.
+  - The project uses Preact (not React) — islands and components are Preact components.
+  - Fresh 2 lint rules tag is "fresh" (in deno.json lint.rules.tags), not "deno".
 ---

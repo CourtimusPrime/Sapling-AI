@@ -15,8 +15,8 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Scaffolded using Fresh 2 (deno run -A jsr:@fresh/init). Fresh 2 uses vite.config.ts instead of fresh.config.ts, and does not use dev.ts — the dev server runs via `deno task dev` which calls vite directly."
     },
     {
       "id": "US-002",
