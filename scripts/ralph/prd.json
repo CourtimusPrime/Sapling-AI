@@ -114,8 +114,8 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "lib/auth.ts exports requireAuth (createMiddleware<AuthEnv>) and AuthEnv type. Uses getCookie from hono/cookie and jwtVerify from jose. api/routes/auth.ts updated with signin, signout, and me endpoints; authRouter typed as Hono<AuthEnv>. api/app.ts uses a protectedRoutes sub-app (new Hono<AuthEnv>()) with use('/*', requireAuth) to protect all non-auth routes; stub GET /chats handler added for acceptance criteria test."
     },
     {
       "id": "US-008",

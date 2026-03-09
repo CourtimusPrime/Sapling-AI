@@ -1,4 +1,9 @@
 ## Codebase Patterns
+- requireAuth middleware is in lib/auth.ts; exports AuthEnv type ({ Variables: { user: { id, email } } }) used to type Hono instances and sub-apps
+- Protected routes use a sub-app: `const protectedRoutes = new Hono<AuthEnv>(); protectedRoutes.use("/*", requireAuth);` mounted via `api.route("/", protectedRoutes)` in api/app.ts
+- hono/factory's `createMiddleware<Env>()` is how middleware with typed context variables is created in Hono v4
+- `deleteCookie(c, name, { path: "/" })` from hono/cookie clears a cookie in Hono
+- Access typed context variables with `c.var.user` (shorthand for `c.get("user")`) once the Hono instance is typed with the correct Env
 - This project uses Fresh 2 (not Fresh 1). Fresh 2 uses vite.config.ts instead of fresh.config.ts, and does not include a dev.ts — the dev server runs via `deno task dev` which calls vite directly.
 - Fresh 2 app entry point is main.ts (creates App instance, adds middleware, calls app.fsRoutes())
 - utils.ts uses createDefine<State>() to create typed helpers (define.page, define.handlers, define.middleware)
@@ -20,6 +25,17 @@
 - Drizzle select single row: `const [row] = await db.select(...).from(table).where(...).limit(1);` (async, returns array)
 - JWT cookie: `setCookie(c, "auth", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: ... })` from `hono/cookie`
 
+---
+
+## 2026-03-09 - US-007
+- What was implemented: POST /api/auth/signin with Zod validation, user lookup, verifyPassword (PBKDF2), JWT signing, httpOnly cookie; POST /api/auth/signout deletes the auth cookie; GET /api/auth/me uses requireAuth middleware and returns { id, email } from context; requireAuth middleware in lib/auth.ts verifies JWT cookie via jose jwtVerify and sets c.var.user; api/app.ts uses a protectedRoutes sub-app with requireAuth applied via use("/*", ...) — stub GET /chats returns 401 without a cookie
+- Files changed: versions/deno-vs/lib/auth.ts (new), versions/deno-vs/api/routes/auth.ts (added signin, signout, me; refactored signToken helper; typed authRouter as Hono<AuthEnv>), versions/deno-vs/api/app.ts (protectedRoutes sub-app with requireAuth, stub /chats route)
+- **Learnings for future iterations:**
+  - Hono v4 middleware with typed context: use `createMiddleware<Env>()` from `hono/factory`
+  - Protected routes sub-app pattern: `new Hono<AuthEnv>()` + `use("/*", requireAuth)` mounted at root of api — cleanly applies requireAuth to all registered routes in the sub-app without needing per-route middleware
+  - `api.route("/auth", authRouter)` registered BEFORE `api.route("/", protectedRoutes)` — Hono routes the more specific `/auth` prefix first so public auth routes are never intercepted by requireAuth
+  - `c.var.user` is typed correctly when the Hono instance has `AuthEnv` as its type parameter
+  - `deleteCookie(c, "auth", { path: "/" })` from `hono/cookie` clears the cookie
 ---
 
 ## 2026-03-09 - US-006
