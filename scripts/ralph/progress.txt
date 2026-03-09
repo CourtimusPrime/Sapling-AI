@@ -8,11 +8,23 @@
 - Fresh 2 define.handlers() accepts either a method-keyed object OR a plain function (HandlerFn) that handles all HTTP methods
 - Catch-all Fresh route for Hono: routes/api/[...path].ts with `define.handlers((ctx) => api.fetch(ctx.req))`
 - `nodeModulesDir: "manual"` requires running `deno install` after adding npm dependencies to deno.json
+- Deno selects `@libsql/client` web implementation which does NOT support `file:` URLs — use `@libsql/client/node` (add as separate import map entry `"@libsql/client/node": "npm:@libsql/client@^0.14.0/node"`) which uses native bindings and supports `file:./sapling.db` for local dev
+- Drizzle client is in `db/client.ts`, exports `db` — uses `drizzle-orm/libsql` driver with `@libsql/client/node`
 
 ---
 
 # Ralph Progress Log
 Started: Mon Mar  9 20:53:05 +04 2026
+---
+
+## 2026-03-09 - US-003
+- What was implemented: drizzle-orm, @libsql/client, and drizzle-kit added as npm dependencies; db/client.ts exports Drizzle client using @libsql/client/node (native bindings); drizzle.config.ts created at project root with turso dialect and ./db/schema.ts path; .env.example documents TURSO_DATABASE_URL and TURSO_AUTH_TOKEN; *.db added to .gitignore
+- Files changed: versions/deno-vs/deno.json (added drizzle-orm, @libsql/client, @libsql/client/node, drizzle-kit), versions/deno-vs/deno.lock, versions/deno-vs/db/client.ts (new), versions/deno-vs/drizzle.config.ts (new), versions/deno-vs/.env.example (new), versions/deno-vs/.gitignore (added *.db)
+- **Learnings for future iterations:**
+  - Deno picks the web implementation of @libsql/client which does NOT support file: URLs — import from @libsql/client/node instead by adding it as a separate import map entry
+  - To add a subpath import for an npm package: `"@libsql/client/node": "npm:@libsql/client@^0.14.0/node"` in deno.json imports
+  - drizzle.config.ts is used by drizzle-kit for migrations (deno task db:generate / db:migrate) — the db:migrate task will be added in US-005
+  - drizzle.config.ts fully typechecks with Deno (defineConfig from drizzle-kit works fine)
 ---
 
 ## 2026-03-09 - US-002

@@ -46,8 +46,8 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Uses @libsql/client/node (not the default /web) because Deno selects the web implementation which doesn't support file: URLs. The /node path uses native bindings and supports file:./sapling.db for local dev. drizzle-kit added for drizzle.config.ts type support. @libsql/client/node mapped as a separate import in deno.json. *.db added to .gitignore."
     },
     {
       "id": "US-004",
