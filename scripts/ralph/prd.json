@@ -63,8 +63,8 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "UnoCSS configured in vite.config.ts (not fresh.config.ts — Fresh 2 uses Vite). Uses presetWind for Tailwind-compatible classes. virtual:uno.css imported in client.ts. Biome 1.9.4 added as npm dep; binary in node_modules/.bin/biome after `deno install --allow-scripts=npm:@biomejs/biome`. deno task lint runs ./node_modules/.bin/biome check. AUTH_JWT_SECRET and SAPLING_DEFAULT_MODEL added to .env.example."
     },
     {
       "id": "US-005",

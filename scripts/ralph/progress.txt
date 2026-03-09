@@ -10,11 +10,24 @@
 - `nodeModulesDir: "manual"` requires running `deno install` after adding npm dependencies to deno.json
 - Deno selects `@libsql/client` web implementation which does NOT support `file:` URLs — use `@libsql/client/node` (add as separate import map entry `"@libsql/client/node": "npm:@libsql/client@^0.14.0/node"`) which uses native bindings and supports `file:./sapling.db` for local dev
 - Drizzle client is in `db/client.ts`, exports `db` — uses `drizzle-orm/libsql` driver with `@libsql/client/node`
+- UnoCSS: add `"unocss": "npm:unocss@^0.65.3"` and `"unocss/vite": "npm:unocss@^0.65.3/vite"` to deno.json imports; configure in vite.config.ts (not fresh.config.ts); import `virtual:uno.css` in client.ts
+- Biome: add `"@biomejs/biome": "npm:@biomejs/biome@^1.9.4"` to deno.json; run `deno install --allow-scripts=npm:@biomejs/biome` (regular deno install ignores the postinstall script, no binary is created); `deno task lint` = `./node_modules/.bin/biome check .`
 
 ---
 
 # Ralph Progress Log
 Started: Mon Mar  9 20:53:05 +04 2026
+---
+
+## 2026-03-09 - US-004
+- What was implemented: UnoCSS 0.65.4 added with presetWind (Tailwind-compatible); configured as a Vite plugin in vite.config.ts (Fresh 2 has no fresh.config.ts); virtual:uno.css imported in client.ts; Biome 1.9.4 added as npm dep with biome.json config (format + lint rules); deno task lint added; fixed existing lint issues in scaffold files (Counter.tsx, _app.tsx, index.tsx); AUTH_JWT_SECRET and SAPLING_DEFAULT_MODEL added to .env.example
+- Files changed: versions/deno-vs/deno.json (new deps + lint task), versions/deno-vs/deno.lock, versions/deno-vs/vite.config.ts (UnoCSS plugin), versions/deno-vs/client.ts (virtual:uno.css import), versions/deno-vs/biome.json (new), versions/deno-vs/.env.example (new env vars), versions/deno-vs/routes/_app.tsx (lang="en"), versions/deno-vs/routes/index.tsx (template literal fix + text-green-700 class), versions/deno-vs/islands/Counter.tsx (noAssignInExpressions fix + format)
+- **Learnings for future iterations:**
+  - UnoCSS goes in vite.config.ts for Fresh 2 (not fresh.config.ts): `import UnoCSS from "unocss/vite"` with `presets: [presetWind()]`; needs subpath import map entries for both `"unocss"` and `"unocss/vite"`
+  - `import "virtual:uno.css"` must be in client.ts (the CSS entry point for HMR) for UnoCSS styles to load
+  - Biome's postinstall script is blocked by default in `deno install` — must use `deno install --allow-scripts=npm:@biomejs/biome` to get the platform binary into node_modules/.bin/biome
+  - Biome finds deno.json formatting issues too (deno.json is a JSON file biome formats) — run `biome check --write .` to auto-fix
+  - `<html>` tag needs `lang="en"` to pass Biome's a11y/useHtmlLang rule
 ---
 
 ## 2026-03-09 - US-003
