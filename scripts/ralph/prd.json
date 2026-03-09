@@ -1,0 +1,384 @@
+{
+  "project": "Sapling",
+  "branchName": "ralph/sapling-deno",
+  "description": "Greenfield Deno rebuild of Sapling — a branching chat app with mindmap visualization. Full feature parity with README.md. Targets Deno Deploy with Turso. Stack: Fresh, Hono, Drizzle, Vercel AI SDK, D3.js, TanStack, Ark UI, UnoCSS, jose, Zod.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fresh project scaffold",
+      "description": "As a developer, I need a working Fresh project in versions/deno-vs/ so all subsequent stories have a foundation to build on.",
+      "acceptanceCriteria": [
+        "versions/deno-vs/ contains deno.json, fresh.config.ts, main.ts, dev.ts",
+        "Standard Fresh directory structure exists: routes/, islands/, components/, static/",
+        "deno task dev starts the dev server without errors",
+        "Default Fresh index route renders a page in the browser",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Hono API handler wired under /api/*",
+      "description": "As a developer, I need Hono mounted as the API handler for all /api/* routes in Fresh so backend routes can be added as Hono route handlers.",
+      "acceptanceCriteria": [
+        "Hono is added as a dependency in deno.json imports",
+        "A Fresh catch-all route (routes/api/[...path].ts) delegates all /api/* requests to a Hono app instance",
+        "A health check route GET /api/health returns { ok: true } with status 200",
+        "Fetching /api/health in the browser returns { ok: true }",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Drizzle ORM + Turso database connection",
+      "description": "As a developer, I need Drizzle ORM configured with a Turso (libSQL) connection so the app has a typed database client ready for schema definition and queries.",
+      "acceptanceCriteria": [
+        "drizzle-orm and @libsql/client are added as dependencies in deno.json imports",
+        "db/client.ts exports a Drizzle client instance using TURSO_DATABASE_URL and TURSO_AUTH_TOKEN env vars",
+        "drizzle.config.ts exists at the project root with the correct dialect and schema path",
+        "TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are documented in .env.example",
+        "Importing db/client.ts does not throw at startup (env vars may be empty strings in dev)",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "UnoCSS styling and Biome linting setup",
+      "description": "As a developer, I need UnoCSS for Tailwind-compatible utility classes and Biome for linting and formatting so the codebase stays consistent from the start.",
+      "acceptanceCriteria": [
+        "UnoCSS is configured in fresh.config.ts as a Fresh plugin",
+        "Tailwind preset is enabled so standard tw utility classes work (e.g. flex, text-sm, bg-white)",
+        "biome.json exists at the project root with sensible defaults (format on save, no unused vars)",
+        "deno task lint runs Biome with zero errors on the initial scaffold",
+        "A UnoCSS utility class applied to the index route renders correctly in the browser",
+        "AUTH_JWT_SECRET and SAPLING_DEFAULT_MODEL are also documented in .env.example",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Database schema and migrations",
+      "description": "As a developer, I need the full Drizzle schema for all tables so the app has a typed, migrated data layer before any feature work begins.",
+      "acceptanceCriteria": [
+        "db/schema.ts defines tables: user (id, email, password_hash, created_at), user_api_key (user_id, provider, encrypted_key, created_at), chat (id, user_id, title, default_model, created_at), node (id, chat_id, parent_id, role, content, created_at), node_metadata (node_id, provider, model, temperature, tools_called, files, token_count)",
+        "role is defined as a Drizzle enum with values: user, assistant, system",
+        "node.parent_id is nullable (null = root node of the chat)",
+        "Indexes exist on node(chat_id), node(parent_id), node_metadata(provider), node_metadata(model)",
+        "All Drizzle inferred types (InferSelectModel, InferInsertModel) are exported from db/schema.ts",
+        "deno task db:migrate generates and applies migrations without errors",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "User registration endpoint",
+      "description": "As a new user, I want to create an account with an email and password so I can access my chats.",
+      "acceptanceCriteria": [
+        "POST /api/auth/signup accepts { email: string, password: string }",
+        "Zod validates the body; returns 400 with { error: string } on invalid input",
+        "Password is hashed using Deno's built-in crypto (PBKDF2 or equivalent) — never stored plain",
+        "On success: user row is inserted, a signed JWT is returned in an httpOnly cookie, and { id, email } is returned in the body",
+        "Returns 409 with { error: 'Email already registered' } if email is taken",
+        "JWT is signed using AUTH_JWT_SECRET env var via the jose library",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Sign-in, sign-out, and auth middleware",
+      "description": "As a returning user, I want to sign in and sign out securely. As a developer, I need auth middleware that protects all routes requiring a logged-in user.",
+      "acceptanceCriteria": [
+        "POST /api/auth/signin accepts { email, password }; returns { id, email } and sets httpOnly JWT cookie on success",
+        "POST /api/auth/signin returns 401 with { error: 'Invalid credentials' } on wrong password",
+        "POST /api/auth/signout clears the auth cookie and returns 200",
+        "GET /api/auth/me returns { id, email } for authenticated requests, or 401 for unauthenticated",
+        "A requireAuth Hono middleware exists in lib/auth.ts that reads the JWT cookie, verifies it, and attaches the user to context — or returns 401",
+        "requireAuth is applied to all non-auth /api/* routes (tested: GET /api/chats returns 401 without a cookie)",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Auth UI page",
+      "description": "As a user, I want a clean page to sign in or create an account so I can access the app.",
+      "acceptanceCriteria": [
+        "GET /auth renders a page with a sign-in form (email + password + submit) and a toggle to switch to sign-up",
+        "Sign-up form has email + password + confirm password fields",
+        "Inline validation errors appear for: empty fields, invalid email format, password under 8 characters",
+        "Successful sign-in or sign-up redirects the user to /main",
+        "Visiting /main without an auth cookie redirects to /auth",
+        "Forms use Ark UI components (Field, Input, Button) with UnoCSS styling",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "API key management backend",
+      "description": "As a user, I want to store API keys for LLM providers so the app can call models on my behalf without exposing keys to the browser.",
+      "acceptanceCriteria": [
+        "PUT /api/settings/api-key accepts { provider: string, key: string } and upserts an encrypted key for the current user",
+        "Keys are encrypted using AES-GCM via the Web Crypto API before being stored in user_api_key",
+        "GET /api/settings/api-key returns [{ provider, isSet: true/false }] — the raw key is never included",
+        "DELETE /api/settings/api-key/:provider removes the stored key for that provider",
+        "A getDecryptedKey(userId, provider) helper in lib/keys.ts decrypts and returns the raw key for server-side LLM calls",
+        "All routes require auth (requireAuth middleware)",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "API key settings UI",
+      "description": "As a user, I want a settings panel where I can add and remove API keys for different providers so I can manage my credentials.",
+      "acceptanceCriteria": [
+        "A settings panel (modal or drawer) is accessible from the main layout via a settings button",
+        "Panel lists supported providers (OpenAI, Anthropic, OpenRouter) each with an indicator showing whether a key is set",
+        "Each provider row has an input to enter/replace the key and a save button",
+        "A remove button clears a saved key (with confirmation)",
+        "After saving, the indicator updates to show the key is set without a page reload",
+        "The raw key value is never displayed after saving — only a masked indicator",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Chat CRUD API",
+      "description": "As a user, I want to create, list, rename, and delete chats so I can organize my conversations.",
+      "acceptanceCriteria": [
+        "POST /api/chats accepts { title?: string } and creates a new chat owned by the current user; returns the created chat object",
+        "GET /api/chats returns all chats for the current user ordered by created_at descending",
+        "PATCH /api/chats/:id accepts { title: string } and updates the chat title; returns 404 for chats not owned by the user",
+        "DELETE /api/chats/:id deletes the chat and all its nodes and node_metadata rows (cascade); returns 404 for chats not owned by the user",
+        "All routes require auth",
+        "Zod validates all request bodies",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Node tree loading endpoint",
+      "description": "As a developer, I need an endpoint that returns the full flat node list for a chat (with metadata) so the client can reconstruct the tree and render the mindmap.",
+      "acceptanceCriteria": [
+        "GET /api/chats/:id/nodes returns a flat array of all nodes for the chat",
+        "Each node object includes: id, parent_id, role, content, created_at, and a metadata object (provider, model, temperature, token_count) or null if no metadata",
+        "Returns 404 if the chat does not exist or is not owned by the current user",
+        "Route requires auth",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Split-view layout and static D3 mindmap",
+      "description": "As a user, I want to see my conversation tree rendered as a mindmap in a split-view layout so I can understand the branching structure.",
+      "acceptanceCriteria": [
+        "/main route renders a two-column layout: chat panel on the left (60% width), mindmap panel on the right (40% width)",
+        "The mindmap panel is a Fresh island (islands/Mindmap.tsx) that accepts a flat nodes array as a prop",
+        "D3 d3-hierarchy computes the tree layout from the flat nodes array (parent-pointer reconstruction)",
+        "Nodes are rendered as SVG circles, color-coded by role: user=blue, assistant=green, system=gray",
+        "Edges between parent and child nodes are rendered as SVG lines or paths",
+        "The active node (from TanStack Store) is rendered with a visible highlight (larger radius or ring)",
+        "An empty state is shown when the chat has no nodes yet",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Chat list sidebar",
+      "description": "As a user, I want to see a list of my chats in a sidebar and create new ones so I can navigate between conversations.",
+      "acceptanceCriteria": [
+        "A sidebar is visible on /main listing all chats from GET /api/chats via TanStack Query",
+        "Each chat row shows the title (or 'Untitled chat' if no title) and the created_at date",
+        "Clicking a chat row sets it as the active chat and loads its nodes",
+        "A 'New chat' button calls POST /api/chats and navigates to the new chat immediately",
+        "A rename action (inline edit or context menu) calls PATCH /api/chats/:id",
+        "A delete action (with confirmation) calls DELETE /api/chats/:id and removes it from the list",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Mindmap interactivity: pan, zoom, and node selection",
+      "description": "As a user, I want to pan and zoom the mindmap and click nodes to select them so I can navigate large trees.",
+      "acceptanceCriteria": [
+        "The mindmap SVG supports pan (click-drag) and zoom (scroll wheel)",
+        "Pan and zoom events are throttled via TanStack Pacer before the viewport transform in TanStack Store is updated",
+        "Clicking any node sets it as the active node in TanStack Store",
+        "The active node highlight updates immediately on click without a server round-trip",
+        "The chat panel shows the active path (ancestor chain from root to active node) as a linear conversation",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Message send endpoint with streaming",
+      "description": "As a developer, I need an endpoint that accepts a message, walks the ancestor context path, calls the LLM via the Vercel AI SDK, streams the response, and persists both the user and assistant nodes.",
+      "acceptanceCriteria": [
+        "POST /api/chats/:id/messages accepts { parentNodeId: string, content: string, provider: string, model: string }",
+        "A user node is created in the database as a child of parentNodeId before the LLM call",
+        "The ancestor chain from parentNodeId to root is walked server-side to build the context array (ordered root → parentNodeId)",
+        "The Vercel AI SDK streamText is called with the context array and the user's decrypted API key for the specified provider",
+        "The response is streamed to the client as text/event-stream",
+        "On stream completion, an assistant node is created in the database and a node_metadata row is persisted with provider, model, temperature (default 0.7), and token_count from the SDK usage object",
+        "Returns 400 if parentNodeId does not belong to the specified chat",
+        "Returns 400 if no API key is set for the specified provider",
+        "Route requires auth",
+        "Typecheck passes"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Streaming chat UI",
+      "description": "As a user, I want to type a message and see the assistant's reply stream in token by token so I can have a responsive conversation.",
+      "acceptanceCriteria": [
+        "The chat panel (Fresh island) has a text input and send button at the bottom",
+        "Submitting a message calls POST /api/chats/:id/messages with the active node as parentNodeId",
+        "Streaming tokens are appended to the assistant message in the UI as they arrive",
+        "Token stream updates are batched via TanStack Pacer (max 60fps) to avoid render thrash",
+        "The user message appears immediately in the chat panel before the stream starts",
+        "The send button is disabled while a stream is in progress",
+        "On stream completion, TanStack Query invalidates the node tree query so the mindmap re-renders with the new nodes",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Context path token counting and trimming",
+      "description": "As a user, I want the app to automatically trim the context if it gets too long and show me how many tokens I'm using so I never hit a hard API limit.",
+      "acceptanceCriteria": [
+        "Before calling streamText, the server estimates the token count of the full context path (1 token ≈ 4 characters approximation)",
+        "If the path exceeds 45% of the model's context window (default 128k if unknown), the oldest messages are dropped first — but the system node (if any) and the last two exchanges are always preserved",
+        "The message endpoint response headers include X-Token-Count and X-Token-Limit so the client can display usage",
+        "The chat input area shows a token usage indicator (e.g. '1,240 / 57,600 tokens') updated after each response",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Fork conversation from any node",
+      "description": "As a user, I want to fork the conversation from any node in the mindmap so I can explore a different direction without losing my current thread.",
+      "acceptanceCriteria": [
+        "Each node in the mindmap has a fork button visible on hover (or right-click context menu)",
+        "Clicking fork sets that node as the active node in TanStack Store (setting it as the next parentNodeId)",
+        "The chat input area shows a 'Branching from: [first 40 chars of node content]' indicator when a non-leaf node is active",
+        "Sending a message from a forked point creates children of that node, which appear as a new branch in the mindmap SVG",
+        "The original branch's nodes remain in the tree and are still navigable by clicking them",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "System nodes",
+      "description": "As a user, I want to insert system-role messages at any point in the tree to steer the model's behavior for that branch.",
+      "acceptanceCriteria": [
+        "When a node is active, the chat input area has an 'Add system message' button or toggle",
+        "Activating it changes the role of the next submission to 'system' instead of 'user'",
+        "System nodes are created via POST /api/chats/:id/messages with role: 'system' (the endpoint already supports this from US-016)",
+        "System nodes appear in the mindmap with gray fill and a distinct icon (e.g. a settings/gear symbol inside the circle)",
+        "System nodes appear in the chat panel with a visually distinct style (gray background, italic text)",
+        "System nodes are included in the context path at their correct position during generation",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Node metadata display",
+      "description": "As a user, I want to see which model generated an assistant reply and how many tokens it used so I understand the cost and provenance of each response.",
+      "acceptanceCriteria": [
+        "Hovering over an assistant node in the mindmap shows a tooltip with: provider, model, temperature, token count",
+        "Clicking an assistant node in the chat panel shows an inline metadata row below the message with the same fields",
+        "Token count is formatted with commas (e.g. '1,240 tokens')",
+        "Metadata is sourced from the node_metadata object already included in the GET /api/chats/:id/nodes response (no extra API calls)",
+        "User and system nodes show no metadata panel",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Model selection",
+      "description": "As a user, I want to choose which model is used for generation so I can switch between providers and models depending on the task.",
+      "acceptanceCriteria": [
+        "The chat settings panel (accessible from the main layout) has a model input field for the chat's default model (stored in chat.default_model via PATCH /api/chats/:id)",
+        "The chat input area has a compact model selector (text input or dropdown) that overrides the model for the next message only",
+        "Model identifier format is provider/model-name (e.g. anthropic/claude-sonnet-4-5, openai/gpt-4o, openrouter/meta-llama/llama-3.3-70b-instruct)",
+        "If no model is set on the chat and no override is provided, SAPLING_DEFAULT_MODEL env var is used as the fallback",
+        "The model used for each generation is visible in the node metadata (already stored in node_metadata.model from US-016)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
