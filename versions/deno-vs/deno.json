@@ -2,6 +2,7 @@
   "nodeModulesDir": "manual",
   "tasks": {
     "check": "deno fmt --check . && deno lint . && deno check",
+    "lint": "./node_modules/.bin/biome check .",
     "dev": "vite",
     "build": "vite build",
     "start": "deno serve -A _fresh/server.js",
@@ -9,15 +10,10 @@
   },
   "lint": {
     "rules": {
-      "tags": [
-        "fresh",
-        "recommended"
-      ]
+      "tags": ["fresh", "recommended"]
     }
   },
-  "exclude": [
-    "**/_fresh/*"
-  ],
+  "exclude": ["**/_fresh/*"],
   "imports": {
     "@/": "./",
     "fresh": "jsr:@fresh/core@^2.2.0",
@@ -29,15 +25,14 @@
     "drizzle-orm": "npm:drizzle-orm@^0.44.0",
     "@libsql/client": "npm:@libsql/client@^0.14.0",
     "@libsql/client/node": "npm:@libsql/client@^0.14.0/node",
-    "drizzle-kit": "npm:drizzle-kit@^0.30.0"
+    "drizzle-kit": "npm:drizzle-kit@^0.30.0",
+    "unocss": "npm:unocss@^0.65.3",
+    "unocss/vite": "npm:unocss@^0.65.3/vite",
+    "@unocss/preset-wind": "npm:@unocss/preset-wind@^0.65.3",
+    "@biomejs/biome": "npm:@biomejs/biome@^1.9.4"
   },
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.asynciterable",
-      "dom.iterable",
-      "deno.ns"
-    ],
+    "lib": ["dom", "dom.asynciterable", "dom.iterable", "deno.ns"],
     "jsx": "precompile",
     "jsxImportSource": "preact",
     "jsxPrecompileSkipElements": [
@@ -56,8 +51,6 @@
       "noscript",
       "template"
     ],
-    "types": [
-      "vite/client"
-    ]
+    "types": ["vite/client"]
   }
 }

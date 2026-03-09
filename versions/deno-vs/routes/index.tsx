@@ -1,12 +1,12 @@
 import { useSignal } from "@preact/signals";
 import { Head } from "fresh/runtime";
-import { define } from "../utils.ts";
 import Counter from "../islands/Counter.tsx";
+import { define } from "../utils.ts";
 
 export default define.page(function Home(ctx) {
   const count = useSignal(3);
 
-  console.log("Shared value " + ctx.state.shared);
+  console.log(`Shared value ${ctx.state.shared}`);
 
   return (
     <div class="px-4 py-8 mx-auto fresh-gradient min-h-screen">
@@ -21,7 +21,7 @@ export default define.page(function Home(ctx) {
           height="128"
           alt="the Fresh logo: a sliced lemon dripping with juice"
         />
-        <h1 class="text-4xl font-bold">Welcome to Fresh</h1>
+        <h1 class="text-4xl font-bold text-green-700">Welcome to Fresh</h1>
         <p class="my-4">
           Try updating this message in the
           <code class="mx-2">./routes/index.tsx</code> file, and refresh.
