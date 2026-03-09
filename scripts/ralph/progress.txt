@@ -3,6 +3,10 @@
 - Fresh 2 app entry point is main.ts (creates App instance, adds middleware, calls app.fsRoutes())
 - utils.ts uses createDefine<State>() to create typed helpers (define.page, define.handlers, define.middleware)
 - deno task dev = vite dev server; deno task build = vite build; deno task start = deno serve _fresh/server.js
+- Drizzle schema uses `drizzle-orm/sqlite-core` (sqliteTable, text, integer, real, index, primaryKey); all tables in db/schema.ts
+- drizzle.config.ts uses `process.env` (runs via drizzle-kit in Node.js) and is excluded from Deno typecheck via deno.json exclude array
+- db:generate = `node ./node_modules/.bin/drizzle-kit generate`; db:migrate = `deno run -A db/migrate.ts` (uses drizzle-orm/libsql/migrator)
+- Biome auto-fix: run `./node_modules/.bin/biome check --write .` to auto-fix formatting issues from generated files (JSON snapshots, new TS files)
 - Pre-commit check: `deno check **/*.ts **/*.tsx` from versions/deno-vs/ for typecheck
 - Hono API app lives in api/app.ts, uses `.basePath("/api")`, routes defined without /api prefix (e.g. api.get("/health", ...))
 - Fresh 2 define.handlers() accepts either a method-keyed object OR a plain function (HandlerFn) that handles all HTTP methods
@@ -13,6 +17,17 @@
 - UnoCSS: add `"unocss": "npm:unocss@^0.65.3"` and `"unocss/vite": "npm:unocss@^0.65.3/vite"` to deno.json imports; configure in vite.config.ts (not fresh.config.ts); import `virtual:uno.css` in client.ts
 - Biome: add `"@biomejs/biome": "npm:@biomejs/biome@^1.9.4"` to deno.json; run `deno install --allow-scripts=npm:@biomejs/biome` (regular deno install ignores the postinstall script, no binary is created); `deno task lint` = `./node_modules/.bin/biome check .`
 
+---
+
+## 2026-03-09 - US-005
+- What was implemented: Drizzle schema for all 5 tables (user, user_api_key, chat, node, node_metadata) with sqlite-core; role as text enum; node.parent_id nullable; indexes on node(chat_id), node(parent_id), node_metadata(provider), node_metadata(model); all InferSelectModel/InferInsertModel types exported; drizzle.config.ts updated to process.env (excluded from Deno typecheck); db:generate and db:migrate tasks added; db/migrate.ts Deno migration script; migration generated and applied successfully
+- Files changed: versions/deno-vs/db/schema.ts (new), versions/deno-vs/db/migrate.ts (new), versions/deno-vs/db/migrations/0000_perpetual_wolverine.sql (generated), versions/deno-vs/db/migrations/meta/ (generated), versions/deno-vs/deno.json (new tasks + exclude), versions/deno-vs/drizzle.config.ts (process.env + comment)
+- **Learnings for future iterations:**
+  - drizzle.config.ts runs via Node.js (drizzle-kit CLI) — use `process.env` not `Deno.env.get()` and exclude from deno.json typecheck
+  - Drizzle SQLite role enum: `text("role", { enum: ["user", "assistant", "system"] })` — no native enum type in SQLite
+  - db:migrate task = `deno run -A db/migrate.ts` which calls `migrate(db, { migrationsFolder: "./db/migrations" })` from drizzle-orm/libsql/migrator
+  - Generated migration JSON files may need Biome auto-fix: run `./node_modules/.bin/biome check --write .` after `deno task db:generate`
+  - Composite PK syntax in Drizzle v0.44: `(t) => [primaryKey({ columns: [t.col1, t.col2] })]` (array form, not object form)
 ---
 
 # Ralph Progress Log

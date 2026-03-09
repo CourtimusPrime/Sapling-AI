@@ -80,8 +80,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "db/schema.ts defines all 5 tables with Drizzle sqlite-core. Role enum via text+enum option. node.parent_id nullable. Indexes on node(chat_id), node(parent_id), node_metadata(provider), node_metadata(model). All InferSelectModel/InferInsertModel types exported. drizzle.config.ts updated to use process.env (runs in Node.js via drizzle-kit) and excluded from Deno typecheck via deno.json exclude array. db:generate task = node drizzle-kit generate; db:migrate task = deno run -A db/migrate.ts using drizzle-orm/libsql/migrator."
     },
     {
       "id": "US-006",
