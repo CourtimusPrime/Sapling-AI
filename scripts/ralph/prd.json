@@ -132,8 +132,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "islands/AuthForm.tsx is a Preact island with Ark UI-inspired Field/Input/Button primitives (no external Ark dep), client-side validation (empty, invalid email, <8 chars, password mismatch), and fetch calls to /api/auth/signin and /api/auth/signup. routes/auth.tsx uses getAuthUser() server-side to redirect authed users to /main. routes/main.tsx uses getAuthUser() to redirect unauthenticated users to /auth. getAuthUser helper added to lib/auth.ts to parse/verify the JWT cookie from a plain Request object without Hono."
     },
     {
       "id": "US-009",
