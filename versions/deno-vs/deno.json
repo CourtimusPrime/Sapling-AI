@@ -31,7 +31,9 @@
     "unocss": "npm:unocss@^0.65.3",
     "unocss/vite": "npm:unocss@^0.65.3/vite",
     "@unocss/preset-wind": "npm:@unocss/preset-wind@^0.65.3",
-    "@biomejs/biome": "npm:@biomejs/biome@^1.9.4"
+    "@biomejs/biome": "npm:@biomejs/biome@^1.9.4",
+    "zod": "npm:zod@^3",
+    "jose": "npm:jose@^5"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.asynciterable", "dom.iterable", "deno.ns"],
