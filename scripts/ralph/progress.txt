@@ -1,3 +1,12 @@
+## 2026-03-10 - US-012
+- What was implemented: `GET /api/chats/:id/nodes` added to `chatsRouter`. Verifies chat ownership (404 if not owned or not found). Left joins `node` with `nodeMetadata` on `nodeMetadata.nodeId = node.id`. Maps rows to `{ id, parentId, role, content, createdAt, metadata: {...} | null }` — uses `metaNodeId` as null sentinel to distinguish "no metadata row" from "metadata row with all-null fields".
+- Files changed: `versions/deno-vs/api/routes/chats.ts` (endpoint added)
+- **Learnings for future iterations:**
+  - Drizzle left join: `.leftJoin(table, eq(table.col, other.col))` — no extra import needed, it's a method on the select builder
+  - Use the PK column of the joined table (e.g. `nodeMetadata.nodeId`) as the null sentinel to detect absent rows in a left join; don't rely on nullable columns that could be null even when the row exists
+  - Response fields use camelCase (Drizzle convention) — consistent with other existing endpoints
+---
+
 ## Codebase Patterns
 - Cascade delete for chats: manually delete node_metadata (inArray nodeIds) → node (chatId) → chat — no onDelete cascade in schema
 - Chat/node ownership check: `and(eq(table.id, id), eq(table.userId, userId))` to verify the resource belongs to the requesting user

@@ -199,8 +199,8 @@
         "Typecheck passes"
       ],
       "priority": 12,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "GET /api/chats/:id/nodes added to chatsRouter. Ownership check via chat.userId. Left join with nodeMetadata on nodeMetadata.nodeId = node.id. metaNodeId used as null sentinel to determine if metadata exists. Response shape: { id, parentId, role, content, createdAt, metadata: { provider, model, temperature, tokenCount } | null }."
     },
     {
       "id": "US-013",
