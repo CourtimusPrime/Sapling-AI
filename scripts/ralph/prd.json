@@ -360,8 +360,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 21,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "islands/Mindmap.tsx: added `tooltip` state ({ metadata, x, y } | null); onMouseEnter on each node sets tooltip for assistant nodes with metadata (computes screen coords via viewportRef.current + node.x/y scaled by viewport.scale); onMouseLeave clears tooltip; absolute-positioned overlay div (pointer-events-none) rendered inside the relative wrapper shows provider, model, temperature, tokens. islands/ChatPanel.tsx: added expandedMetaId state; biome-ignore useEffect resets it on activeChatId change; assistant message divs get tabIndex=0 + onClick + onKeyDown to toggle expandedMetaId; inline metadata row (border-t, text-xs, gray) rendered inside the bubble when expandedMetaId === node.id and node.metadata is present. Token count formatted via .toLocaleString(). User and system nodes have no metadata UI."
     },
     {
       "id": "US-022",
