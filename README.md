@@ -1,4 +1,6 @@
-# Sapling
+![Sapling](./public/banner.png)
+
+# 🌱 Sapling
 
 Sapling is a **branching chat app** that turns every conversation into a navigable mindmap. Unlike linear chat interfaces, Sapling lets you fork any message, keep multiple threads alive simultaneously, and precisely control what context the model sees — so you can explore ideas without losing earlier paths or polluting the model's attention with irrelevant history.
 
@@ -177,3 +179,4 @@ Table node_metadata {
 - **Minimal chrome**: the input area stays clean; metadata and settings are secondary surfaces.
 - **No surprises on context**: the user should always be able to see exactly what the model will receive before hitting send.
 - **Forking is cheap**: the action to branch should feel as lightweight as sending a message, not like a modal workflow.
+
