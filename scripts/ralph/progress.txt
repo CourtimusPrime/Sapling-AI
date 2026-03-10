@@ -1,4 +1,8 @@
 ## Codebase Patterns
+- Cascade delete for chats: manually delete node_metadata (inArray nodeIds) → node (chatId) → chat — no onDelete cascade in schema
+- Chat/node ownership check: `and(eq(table.id, id), eq(table.userId, userId))` to verify the resource belongs to the requesting user
+
+
 - AES-GCM encryption: `lib/crypto.ts` exports `encrypt(plaintext)` / `decrypt(encoded)` — key derived via HKDF from `ENCRYPTION_KEY` env var; ciphertext stored as base64url(iv || ciphertext)
 - `getDecryptedKey(userId, provider)` in `lib/keys.ts` decrypts and returns the raw API key (or null) — use for server-side LLM calls
 - Drizzle upsert pattern: `.insert(table).values({...}).onConflictDoUpdate({ target: [col1, col2], set: { col: newVal } })`
@@ -34,6 +38,15 @@
 - Drizzle select single row: `const [row] = await db.select(...).from(table).where(...).limit(1);` (async, returns array)
 - JWT cookie: `setCookie(c, "auth", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: ... })` from `hono/cookie`
 
+---
+
+## 2026-03-10 - US-011
+- What was implemented: `api/routes/chats.ts` with POST /chats (create with optional title, returns 201 + created row), GET /chats (list all for user ordered by created_at desc), PATCH /chats/:id (update title; 404 if chat not owned by user), DELETE /chats/:id (manual cascade delete: node_metadata → node → chat; 404 if not owned). Removed stub GET /chats from api/app.ts and replaced with `protectedRoutes.route("/chats", chatsRouter)`.
+- Files changed: `versions/deno-vs/api/routes/chats.ts` (new), `versions/deno-vs/api/app.ts` (import + route mount, stub removed)
+- **Learnings for future iterations:**
+  - Cascade delete must be done manually (no onDelete cascade in schema): select node IDs, delete node_metadata with `inArray(nodeMetadata.nodeId, nodeIds)`, delete nodes with `eq(node.chatId, chatId)`, then delete chat
+  - Ownership check pattern: `and(eq(table.id, id), eq(table.userId, userId))` — always verify userId on protected PATCH/DELETE routes
+  - Biome formats chained Drizzle queries as single-line if they fit (e.g. `db.update(t).set({}).where(...)`) — don't manually break to multi-line
 ---
 
 ## 2026-03-10 - US-010

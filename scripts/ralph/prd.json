@@ -184,8 +184,8 @@
         "Typecheck passes"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "chatsRouter in api/routes/chats.ts: POST /chats (create with optional title, returns 201), GET /chats (list by userId ordered by created_at desc), PATCH /chats/:id (update title, 404 if not owned), DELETE /chats/:id (manual cascade: deletes node_metadata → node → chat, 404 if not owned). Replaced stub GET /chats in api/app.ts. Cascade delete uses inArray from drizzle-orm to batch-delete node_metadata for all nodes in the chat."
     },
     {
       "id": "US-012",
