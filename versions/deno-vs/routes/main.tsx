@@ -1,3 +1,4 @@
+import SettingsPanel from "../islands/SettingsPanel.tsx";
 import { getAuthUser } from "../lib/auth.ts";
 import { define } from "../utils.ts";
 
@@ -11,11 +12,17 @@ export const handler = define.handlers({
       });
     }
     return ctx.render(
-      <div class="flex min-h-screen flex-col items-center justify-center bg-gray-50">
-        <div class="rounded-lg bg-white p-8 shadow-md">
-          <h1 class="text-2xl font-bold text-gray-900">Sapling</h1>
-          <p class="mt-2 text-gray-600">Welcome, {user.email}. More coming soon.</p>
-        </div>
+      <div class="flex min-h-screen flex-col bg-gray-50">
+        <header class="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
+          <h1 class="text-lg font-bold text-gray-900">Sapling</h1>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-500">{user.email}</span>
+            <SettingsPanel />
+          </div>
+        </header>
+        <main class="flex flex-1 items-center justify-center">
+          <p class="text-gray-400">Select or create a chat to get started.</p>
+        </main>
       </div>,
     );
   },
