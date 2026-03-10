@@ -27,6 +27,7 @@ export default function ChatPanel() {
   const [tokenCount, setTokenCount] = useState(0);
   const [tokenLimit, setTokenLimit] = useState(0);
   const [isSystemMode, setIsSystemMode] = useState(false);
+  const [expandedMetaId, setExpandedMetaId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Throttled setter for streaming content — batches updates to max ~60fps
@@ -41,6 +42,11 @@ export default function ChatPanel() {
     });
     return unsub;
   }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId is an intentional trigger dep
+  useEffect(() => {
+    setExpandedMetaId(null);
+  }, [activeChatId]);
 
   useEffect(() => {
     if (!activeChatId) {
@@ -258,7 +264,18 @@ export default function ChatPanel() {
                   : node.role === "system"
                     ? "bg-gray-100 text-xs italic text-gray-600"
                     : "bg-gray-100 text-gray-800"
-              }`}
+              } ${node.role === "assistant" ? "cursor-pointer" : ""}`}
+              onClick={() => {
+                if (node.role === "assistant") {
+                  setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
+                }
+              }}
+              onKeyDown={(e: KeyboardEvent) => {
+                if (node.role === "assistant" && (e.key === "Enter" || e.key === " ")) {
+                  setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
+                }
+              }}
+              tabIndex={node.role === "assistant" ? 0 : undefined}
             >
               {node.role !== "user" && (
                 <div class="mb-1 text-xs font-semibold opacity-60">
@@ -266,6 +283,23 @@ export default function ChatPanel() {
                 </div>
               )}
               <p class="whitespace-pre-wrap break-words">{node.content}</p>
+              {node.role === "assistant" && node.metadata && expandedMetaId === node.id && (
+                <div class="mt-2 border-t border-gray-300 pt-1.5 text-xs text-gray-500">
+                  <div>
+                    <span class="font-medium">Provider:</span> {node.metadata.provider}
+                  </div>
+                  <div>
+                    <span class="font-medium">Model:</span> {node.metadata.model}
+                  </div>
+                  <div>
+                    <span class="font-medium">Temperature:</span> {node.metadata.temperature}
+                  </div>
+                  <div>
+                    <span class="font-medium">Tokens:</span>{" "}
+                    {node.metadata.tokenCount.toLocaleString()}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}

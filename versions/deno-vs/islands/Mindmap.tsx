@@ -42,6 +42,11 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
   const [viewport, setViewport] = useState<Viewport>(appStore.state.viewport);
   const [isPanning, setIsPanning] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<{
+    metadata: { provider: string; model: string; temperature: number; tokenCount: number };
+    x: number;
+    y: number;
+  } | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const viewportRef = useRef<Viewport>(appStore.state.viewport);
@@ -212,8 +217,21 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
                 onKeyDown={(e: KeyboardEvent) => {
                   if (e.key === "Enter" || e.key === " ") handleNodeClick(node.data.id);
                 }}
-                onMouseEnter={() => setHoveredNodeId(node.data.id)}
-                onMouseLeave={() => setHoveredNodeId(null)}
+                onMouseEnter={() => {
+                  setHoveredNodeId(node.data.id);
+                  if (node.data.role === "assistant" && node.data.metadata) {
+                    const vp = viewportRef.current;
+                    setTooltip({
+                      metadata: node.data.metadata,
+                      x: vp.x + node.x * vp.scale,
+                      y: vp.y + node.y * vp.scale,
+                    });
+                  }
+                }}
+                onMouseLeave={() => {
+                  setHoveredNodeId(null);
+                  setTooltip(null);
+                }}
               >
                 {isActive && <circle r={20} fill="none" stroke="#1d4ed8" stroke-width={3} />}
                 <circle r={isActive ? 16 : 12} fill={fill} />
@@ -281,6 +299,25 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
       {nodes.length > 0 && treeContent === null && (
         <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
           <p class="text-sm text-gray-400">Unable to render tree.</p>
+        </div>
+      )}
+      {tooltip && (
+        <div
+          class="pointer-events-none absolute z-10 rounded bg-gray-800 px-2 py-1.5 text-xs text-white shadow-lg"
+          style={{ left: `${tooltip.x + 22}px`, top: `${tooltip.y - 50}px` }}
+        >
+          <div class="mb-0.5">
+            <span class="opacity-70">Provider:</span> {tooltip.metadata.provider}
+          </div>
+          <div class="mb-0.5">
+            <span class="opacity-70">Model:</span> {tooltip.metadata.model}
+          </div>
+          <div class="mb-0.5">
+            <span class="opacity-70">Temp:</span> {tooltip.metadata.temperature}
+          </div>
+          <div>
+            <span class="opacity-70">Tokens:</span> {tooltip.metadata.tokenCount.toLocaleString()}
+          </div>
         </div>
       )}
     </div>
