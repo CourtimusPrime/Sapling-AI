@@ -343,8 +343,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 20,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "ChatPanel: added isSystemMode state toggle button ('⚙ System'/'⚙ System (on)'); when active, send call includes role:'system', skips streaming (non-SSE JSON response), auto-navigates to newest system node. API: sendMessageSchema extended with optional role enum (default 'user'); system role path inserts node and returns { ok: true, nodeId } immediately without LLM call — no API key required for system nodes. buildAncestorPath already includes system nodes at correct position. Mindmap: system nodes (gray circles) now show ⚙ gear text icon inside the circle."
     },
     {
       "id": "US-021",
