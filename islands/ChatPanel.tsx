@@ -1,5 +1,27 @@
 import { throttle } from "@tanstack/pacer";
 import { useEffect, useRef, useState } from "preact/hooks";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+} from "../components/ai-elements/conversation.tsx";
+import {
+  Message,
+  MessageContent,
+  MessageLabel,
+  MessageMeta,
+  MessageMetaRow,
+  MessageText,
+} from "../components/ai-elements/message.tsx";
+import {
+  PromptInput,
+  PromptInputActions,
+  PromptInputButton,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+} from "../components/ai-elements/prompt-input.tsx";
+import { Shimmer, SkeletonBlock } from "../components/ai-elements/shimmer.tsx";
 import { appStore } from "../stores/chat.ts";
 import type { MindmapNode } from "./Mindmap.tsx";
 
@@ -86,9 +108,11 @@ export default function ChatPanel() {
 
   if (!activeChatId) {
     return (
-      <div class="flex h-full items-center justify-center">
-        <p class="text-sm text-gray-400">Select or create a chat to get started.</p>
-      </div>
+      <ConversationEmptyState
+        title="No chat selected"
+        description="Select or create a chat to get started."
+        class="h-full"
+      />
     );
   }
 
@@ -106,7 +130,6 @@ export default function ChatPanel() {
       if (res.ok) {
         const data = (await res.json()) as MindmapNode[];
         setNodes(data);
-        // For user messages, auto-navigate to the newest assistant node
         const newest =
           role === "user"
             ? data
@@ -163,7 +186,6 @@ export default function ChatPanel() {
     const parentId = activeNodeId;
     if (!chatId || !input.trim() || isStreaming) return;
 
-    // Parse provider/model from override input; empty means server uses chat default/env fallback
     const slashIdx = model.indexOf("/");
     const provider = slashIdx !== -1 ? model.slice(0, slashIdx) : undefined;
     const modelName = slashIdx !== -1 ? model.slice(slashIdx + 1) : undefined;
@@ -173,7 +195,6 @@ export default function ChatPanel() {
     setInput("");
     setIsSystemMode(false);
 
-    // System messages: non-streaming insert
     if (role === "system") {
       setPendingUser(content);
       try {
@@ -228,7 +249,6 @@ export default function ChatPanel() {
         return;
       }
 
-      // Read token usage headers
       const xCount = res.headers.get("X-Token-Count");
       const xLimit = res.headers.get("X-Token-Limit");
       if (xCount) setTokenCount(Number(xCount));
@@ -257,7 +277,6 @@ export default function ChatPanel() {
         }
       }
 
-      // Flush any remaining buffer content
       if (buf.startsWith("data: ")) {
         accumulated += buf.slice(6);
       }
@@ -275,111 +294,100 @@ export default function ChatPanel() {
 
   return (
     <div class="flex h-full flex-col">
-      <div class="flex-1 overflow-y-auto p-4">
-        {nodes.length === 0 && !pendingUser && (
-          <p class="mt-8 text-center text-sm text-gray-400">
-            No messages yet. Send a message to start!
-          </p>
-        )}
-        {path.length === 0 && nodes.length > 0 && !pendingUser && (
-          <p class="mt-8 text-center text-sm text-gray-400">
-            Click a node in the mindmap to view the conversation.
-          </p>
-        )}
-        {path.map((node) => (
-          <div
-            key={node.id}
-            class={`mb-3 flex ${node.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              class={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                node.role === "user"
-                  ? "bg-blue-500 text-white"
-                  : node.role === "system"
-                    ? "bg-gray-100 text-xs italic text-gray-600"
-                    : "bg-gray-100 text-gray-800"
-              } ${node.role === "assistant" ? "cursor-pointer" : ""}`}
-              onClick={() => {
-                if (node.role === "assistant") {
-                  setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
-                }
-              }}
-              onKeyDown={(e: KeyboardEvent) => {
-                if (node.role === "assistant" && (e.key === "Enter" || e.key === " ")) {
-                  setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
-                }
-              }}
-              tabIndex={node.role === "assistant" ? 0 : undefined}
-            >
+      {/* ── Message list ── */}
+      <Conversation class="flex-1" stickToBottom>
+        <ConversationContent>
+          {nodes.length === 0 && !pendingUser && (
+            <ConversationEmptyState
+              title="No messages yet"
+              description="Send a message to start the conversation."
+            />
+          )}
+          {path.length === 0 && nodes.length > 0 && !pendingUser && (
+            <ConversationEmptyState
+              title="No node selected"
+              description="Click a node in the mindmap to view the conversation."
+            />
+          )}
+
+          {path.map((node) => (
+            <Message key={node.id} from={node.role as "user" | "assistant" | "system"}>
               {node.role !== "user" && (
-                <div class="mb-1 text-xs font-semibold opacity-60">
+                <MessageLabel>
                   {node.role === "system" ? "System" : "Assistant"}
-                </div>
+                </MessageLabel>
               )}
-              <p class="whitespace-pre-wrap break-words">{node.content}</p>
-              {node.role === "assistant" && node.metadata && expandedMetaId === node.id && (
-                <div class="mt-2 border-t border-gray-300 pt-1.5 text-xs text-gray-500">
-                  <div>
-                    <span class="font-medium">Provider:</span> {node.metadata.provider}
-                  </div>
-                  <div>
-                    <span class="font-medium">Model:</span> {node.metadata.model}
-                  </div>
-                  <div>
-                    <span class="font-medium">Temperature:</span> {node.metadata.temperature}
-                  </div>
-                  <div>
-                    <span class="font-medium">Tokens:</span>{" "}
-                    {node.metadata.tokenCount.toLocaleString()}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+              <MessageContent
+                role={node.role as "user" | "assistant" | "system"}
+                class={node.role === "assistant" ? "cursor-pointer" : undefined}
+                onClick={() => {
+                  if (node.role === "assistant") {
+                    setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
+                  }
+                }}
+                onKeyDown={(e: KeyboardEvent) => {
+                  if (node.role === "assistant" && (e.key === "Enter" || e.key === " ")) {
+                    setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
+                  }
+                }}
+                tabIndex={node.role === "assistant" ? 0 : undefined}
+              >
+                <MessageText>{node.content}</MessageText>
+                {node.role === "assistant" && node.metadata && expandedMetaId === node.id && (
+                  <MessageMeta>
+                    <MessageMetaRow label="Provider" value={node.metadata.provider} />
+                    <MessageMetaRow label="Model" value={node.metadata.model} />
+                    <MessageMetaRow label="Temperature" value={node.metadata.temperature} />
+                    <MessageMetaRow
+                      label="Tokens"
+                      value={node.metadata.tokenCount.toLocaleString()}
+                    />
+                  </MessageMeta>
+                )}
+              </MessageContent>
+            </Message>
+          ))}
 
-        {/* Optimistic pending message while sending */}
-        {pendingUser && (
-          <div class={`mb-3 flex ${isSystemMode ? "justify-start" : "justify-end"}`}>
-            <div
-              class={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                isSystemMode ? "bg-gray-100 text-xs italic text-gray-600" : "bg-blue-500 text-white"
-              }`}
-            >
-              {isSystemMode && <div class="mb-1 text-xs font-semibold opacity-60">System</div>}
-              <p class="whitespace-pre-wrap break-words">{pendingUser}</p>
-            </div>
-          </div>
-        )}
+          {/* Optimistic pending user message */}
+          {pendingUser && (
+            <Message from={isSystemMode ? "system" : "user"}>
+              {isSystemMode && <MessageLabel>System</MessageLabel>}
+              <MessageContent role={isSystemMode ? "system" : "user"}>
+                <MessageText>{pendingUser}</MessageText>
+              </MessageContent>
+            </Message>
+          )}
 
-        {/* Streaming assistant response */}
-        {isStreaming && (
-          <div class="mb-3 flex justify-start">
-            <div class="max-w-[80%] rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-800">
-              <div class="mb-1 text-xs font-semibold opacity-60">Assistant</div>
-              {streamContent ? (
-                <p class="whitespace-pre-wrap break-words">{streamContent}</p>
-              ) : (
-                <span class="animate-pulse text-gray-400">Thinking…</span>
-              )}
-            </div>
-          </div>
-        )}
+          {/* Streaming assistant response */}
+          {isStreaming && (
+            <Message from="assistant">
+              <MessageLabel>Assistant</MessageLabel>
+              <MessageContent role="assistant">
+                {streamContent ? (
+                  <MessageText>{streamContent}</MessageText>
+                ) : (
+                  <SkeletonBlock lines={2} class="w-48" />
+                )}
+              </MessageContent>
+            </Message>
+          )}
 
-        <div ref={bottomRef} />
-      </div>
+          <div ref={bottomRef} />
+        </ConversationContent>
+      </Conversation>
 
-      {/* Input area */}
-      <div class="border-t border-gray-200 p-3">
-        {/* Chat default model settings panel */}
-        <div class="mb-2 flex items-center justify-between">
+      {/* ── Input area ── */}
+      <div class="border-t border-gray-100 bg-white px-4 py-3">
+        {/* Default model row */}
+        <div class="mb-2.5 flex items-center justify-between">
           <span class="text-xs text-gray-400">
             {chatDefaultModel ? (
               <>
-                Default: <span class="font-medium text-gray-600">{chatDefaultModel}</span>
+                Default:{" "}
+                <span class="font-medium text-gray-600">{chatDefaultModel}</span>
               </>
             ) : (
-              <span class="italic">No default model set</span>
+              <span class="italic">No default model</span>
             )}
           </span>
           <button
@@ -388,111 +396,110 @@ export default function ChatPanel() {
               setShowChatSettings((v) => !v);
               setDefaultModelInput(chatDefaultModel ?? "");
             }}
-            class="rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            class="rounded-md px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
             title="Chat model settings"
           >
             ⚙ Default
           </button>
         </div>
+
+        {/* Default model settings panel */}
         {showChatSettings && (
-          <div class="mb-2 rounded border border-gray-200 bg-gray-50 p-2">
-            <div class="mb-1 text-xs font-medium text-gray-600">Default model for this chat:</div>
-            <div class="flex gap-1">
+          <div class="mb-2.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+            <div class="mb-1.5 text-xs font-medium text-gray-600">
+              Default model for this chat:
+            </div>
+            <div class="flex gap-1.5">
               <input
                 type="text"
                 value={defaultModelInput}
-                onInput={(e) => setDefaultModelInput((e.target as HTMLInputElement).value)}
+                onInput={(e) =>
+                  setDefaultModelInput((e.target as HTMLInputElement).value)
+                }
                 placeholder="provider/model-name (e.g. anthropic/claude-sonnet-4-5)"
-                class="flex-1 rounded border border-gray-200 px-2 py-1 text-xs focus:border-blue-300 focus:outline-none"
+                class="flex-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs focus:border-blue-300 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleSaveDefaultModel}
                 disabled={isSavingDefault}
-                class="rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+                class="rounded-lg bg-blue-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
               >
                 {isSavingDefault ? "…" : "Save"}
               </button>
               <button
                 type="button"
                 onClick={() => setShowChatSettings(false)}
-                class="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+                class="rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
               >
                 ×
               </button>
             </div>
           </div>
         )}
+
+        {/* Fork warning */}
         {isForkingFromNonLeaf && activeNode && (
-          <div class="mb-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
-            {`Branching from: ${activeNode.content.substring(0, 40)}${activeNode.content.length > 40 ? "…" : ""}`}
+          <div class="mb-2.5 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
+            <span class="font-medium">Branching from:</span>
+            {`${activeNode.content.substring(0, 40)}${activeNode.content.length > 40 ? "…" : ""}`}
           </div>
         )}
+
+        {/* Token usage */}
         {tokenLimit > 0 && (
-          <div class="mb-1 text-right text-xs text-gray-400">
+          <div class="mb-2 text-right text-xs text-gray-400">
             {tokenCount.toLocaleString()} / {tokenLimit.toLocaleString()} tokens
           </div>
         )}
-        <div class="mb-2">
-          <input
-            type="text"
-            value={model}
-            onInput={(e) => setModel((e.target as HTMLInputElement).value)}
-            placeholder="override model for next message (e.g. openai/gpt-4o)"
-            class="w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-500 focus:border-blue-300 focus:outline-none"
-          />
-        </div>
-        <div class="mb-2 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsSystemMode((v) => !v)}
-            disabled={isStreaming}
-            class={`rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-40 ${
-              isSystemMode
-                ? "bg-gray-600 text-white hover:bg-gray-700"
-                : "border border-gray-300 text-gray-500 hover:bg-gray-50"
-            }`}
-          >
-            {isSystemMode ? "⚙ System (on)" : "⚙ System"}
-          </button>
-          {isSystemMode && (
-            <span class="text-xs text-gray-400">Next message will be a system node</span>
-          )}
-        </div>
-        <div class="flex gap-2">
-          <textarea
+
+        {/* Prompt Input */}
+        <PromptInput>
+          <PromptInputTextarea
             value={input}
-            onInput={(e) => setInput((e.target as HTMLTextAreaElement).value)}
-            onKeyDown={(e: KeyboardEvent) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={
-              isSystemMode
-                ? "Type a system instruction…"
-                : "Type a message… (Enter to send, Shift+Enter for newline)"
-            }
             disabled={isStreaming}
             rows={2}
-            class={`flex-1 resize-none rounded border px-3 py-2 text-sm focus:outline-none disabled:opacity-50 ${
+            placeholder={
               isSystemMode
-                ? "border-gray-400 bg-gray-50 focus:border-gray-500"
-                : "border-gray-200 focus:border-blue-400"
-            }`}
+                ? "Type a system instruction… (Enter to send)"
+                : "Type a message… (Enter to send, Shift+Enter for newline)"
+            }
+            onValueChange={setInput}
+            onSubmit={handleSend}
           />
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={isStreaming || !input.trim()}
-            class={`rounded px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 ${
-              isSystemMode ? "bg-gray-600 hover:bg-gray-700" : "bg-blue-500 hover:bg-blue-600"
-            }`}
-          >
-            {isStreaming ? "…" : "Send"}
-          </button>
-        </div>
+          <PromptInputFooter>
+            <PromptInputActions>
+              <PromptInputButton
+                active={isSystemMode}
+                disabled={isStreaming}
+                onClick={() => setIsSystemMode((v) => !v)}
+                title="Toggle system message mode"
+              >
+                ⚙{isSystemMode ? " System (on)" : " System"}
+              </PromptInputButton>
+              <input
+                type="text"
+                value={model}
+                onInput={(e) => setModel((e.target as HTMLInputElement).value)}
+                placeholder="override model (e.g. openai/gpt-4o)"
+                class="h-7 rounded-lg border border-gray-200 px-2 text-xs text-gray-500 focus:border-blue-300 focus:outline-none"
+              />
+            </PromptInputActions>
+            <PromptInputSubmit
+              disabled={!input.trim()}
+              isLoading={isStreaming}
+              variant={isSystemMode ? "system" : "default"}
+              onClick={handleSend}
+              aria-label="Send message"
+            />
+          </PromptInputFooter>
+        </PromptInput>
+
+        {isSystemMode && (
+          <p class="mt-1.5 text-center text-xs text-gray-400">
+            Next message will be a system node
+          </p>
+        )}
       </div>
     </div>
   );
