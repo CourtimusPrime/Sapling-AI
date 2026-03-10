@@ -236,8 +236,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 14,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "ChatSidebar island uses @tanstack/preact-query (QueryClient + QueryClientProvider inside the island). useQuery for GET /api/chats; useMutation for POST/PATCH/DELETE. Clicking a chat sets appStore.activeChatId; Mindmap island watches activeChatId via subscribe and fetches nodes from GET /api/chats/:id/nodes. 3-column layout: w-64 sidebar | flex-1 chat panel | w-2/5 mindmap. @types/d3-hierarchy added to deno.json imports to prevent it being cleaned by subsequent deno install runs."
     },
     {
       "id": "US-015",

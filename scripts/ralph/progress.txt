@@ -1,3 +1,15 @@
+## 2026-03-10 - US-014
+- What was implemented: `islands/ChatSidebar.tsx` — Fresh island wrapping `@tanstack/preact-query` (QueryClient + QueryClientProvider scoped to the island). `useQuery(["chats"])` fetches all chats from GET /api/chats. `useMutation` for POST /api/chats (create + set active), PATCH /api/chats/:id (inline rename), DELETE /api/chats/:id (two-step confirmation). Each chat row shows title ("Untitled chat" if null) and formatted date. Action buttons (rename ✎, delete ✕) appear on hover. Clicking a row sets appStore.activeChatId + clears activeNodeId. `islands/Mindmap.tsx` extended to subscribe to appStore.activeChatId and fetch nodes from GET /api/chats/:id/nodes whenever activeChatId changes — dynamically drives the mindmap view. `routes/main.tsx` updated to 3-column layout: ChatSidebar (w-64) | chat panel (flex-1) | mindmap (w-2/5).
+- Files changed: `versions/deno-vs/islands/ChatSidebar.tsx` (new), `versions/deno-vs/islands/Mindmap.tsx` (watch activeChatId + fetch nodes), `versions/deno-vs/routes/main.tsx` (3-col layout + ChatSidebar), `versions/deno-vs/deno.json` (+ @tanstack/preact-query, + @types/d3-hierarchy explicit entry), `versions/deno-vs/deno.lock`
+- **Learnings for future iterations:**
+  - `@tanstack/preact-query` v5 uses same API as `@tanstack/react-query` v5 — `useQuery`, `useMutation`, `QueryClient`, `QueryClientProvider` all from same package
+  - `useMutation` v5: `isPending` (not `isLoading`); `onSuccess: (data, variables) => void`; `mutate(vars)` or `mutateAsync(vars)`
+  - Each island creates its own `QueryClient` (module-level constant) — islands cannot share a QueryClient via context since they hydrate independently
+  - `@types/d3-hierarchy` must be listed in deno.json `imports` (e.g. `"@types/d3-hierarchy": "npm:@types/d3-hierarchy@^3.1.7"`) — without this, subsequent `deno install` runs remove it from node_modules since it's not tracked in deno.lock
+  - Biome `useSemanticElements`: avoid `<div role="button">` — use `<button>` element instead; if the container has buttons inside, make the title/content area a `<button>` and render action buttons as siblings (absolutely positioned), not nested
+  - `group-hover:flex` UnoCSS variant works when parent has `class="group"` via presetWind
+---
+
 ## 2026-03-10 - US-013
 - What was implemented: Split-view layout on `/main` (w-3/5 chat panel left, w-2/5 mindmap right); `islands/Mindmap.tsx` Fresh island using d3-hierarchy `stratify`+`tree.nodeSize([80,80])` to compute tree layout; SVG rendering with circles color-coded by role (user=blue, assistant=green, system=gray), edges as `<line>`, active node highlighted with outer ring; `@tanstack/store` v0.9.2 for `appStore` (activeNodeId, activeChatId); empty state when no nodes; error state on stratify failure.
 - Files changed: `versions/deno-vs/islands/Mindmap.tsx` (new), `versions/deno-vs/stores/chat.ts` (new), `versions/deno-vs/routes/main.tsx` (split view layout), `versions/deno-vs/deno.json` (added d3-hierarchy, @tanstack/store, @types/d3-hierarchy deps)
@@ -21,8 +33,11 @@
 
 ## Codebase Patterns
 - `@tanstack/store` v0.9.2: `subscribe` returns `Subscription` (call `.unsubscribe()` in cleanup); listener receives state as argument `(val: T) => void`; `setState` takes updater `(prev: T) => T`
-- Untyped npm packages in Deno: use `// @deno-types="npm:@types/package@version"` pragma above the import (NOT adding @types to deno.json imports)
+- Untyped npm packages in Deno: use `// @deno-types="npm:@types/package@version"` pragma above the import; BUT the @types package must also be in deno.json imports so `deno install` tracks it and doesn't remove it later
 - App-wide client state (activeNodeId, activeChatId) lives in `stores/chat.ts` (`appStore`); islands subscribe via useEffect + sub.unsubscribe()
+- TanStack Query in islands: each island creates its own `QueryClient` (module-level const) wrapped in `QueryClientProvider`; islands cannot share QueryClient context since they hydrate independently
+- `@tanstack/preact-query` v5: `useQuery`, `useMutation`, `QueryClient`, `QueryClientProvider` all exported from `@tanstack/preact-query`; `useMutation` uses `isPending` not `isLoading`; `onSuccess: (data, variables, context) => void`
+- Biome `useSemanticElements`: `<div role="button">` is a lint error — use `<button type="button">` instead; action buttons can be siblings (absolutely positioned) rather than nested, to avoid invalid HTML button-in-button nesting
 - Cascade delete for chats: manually delete node_metadata (inArray nodeIds) → node (chatId) → chat — no onDelete cascade in schema
 - Chat/node ownership check: `and(eq(table.id, id), eq(table.userId, userId))` to verify the resource belongs to the requesting user
 
