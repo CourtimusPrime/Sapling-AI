@@ -18,9 +18,12 @@ function getAncestorPath(nodes: MindmapNode[], activeNodeId: string | null): Min
 export default function ChatPanel() {
   const [activeChatId, setActiveChatId] = useState<string | null>(appStore.state.activeChatId);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(appStore.state.activeNodeId);
+  const [chatDefaultModel, setChatDefaultModel] = useState<string | null>(
+    appStore.state.chatDefaultModel,
+  );
   const [nodes, setNodes] = useState<MindmapNode[]>([]);
   const [input, setInput] = useState("");
-  const [model, setModel] = useState("anthropic/claude-sonnet-4-5");
+  const [model, setModel] = useState(appStore.state.chatDefaultModel ?? "");
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingUser, setPendingUser] = useState<string | null>(null);
   const [streamContent, setStreamContent] = useState("");
@@ -28,6 +31,9 @@ export default function ChatPanel() {
   const [tokenLimit, setTokenLimit] = useState(0);
   const [isSystemMode, setIsSystemMode] = useState(false);
   const [expandedMetaId, setExpandedMetaId] = useState<string | null>(null);
+  const [showChatSettings, setShowChatSettings] = useState(false);
+  const [defaultModelInput, setDefaultModelInput] = useState("");
+  const [isSavingDefault, setIsSavingDefault] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Throttled setter for streaming content — batches updates to max ~60fps
@@ -39,13 +45,17 @@ export default function ChatPanel() {
     const unsub = appStore.subscribe(({ currentVal }) => {
       setActiveChatId(currentVal.activeChatId);
       setActiveNodeId(currentVal.activeNodeId);
+      setChatDefaultModel(currentVal.chatDefaultModel);
     });
     return unsub;
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId is an intentional trigger dep
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId is intentional trigger dep; chatDefaultModel read at effect time
   useEffect(() => {
     setExpandedMetaId(null);
+    setShowChatSettings(false);
+    setModel(appStore.state.chatDefaultModel ?? "");
+    setDefaultModelInput(appStore.state.chatDefaultModel ?? "");
   }, [activeChatId]);
 
   useEffect(() => {
@@ -124,15 +134,39 @@ export default function ChatPanel() {
     }
   }
 
+  async function handleSaveDefaultModel() {
+    const chatId = activeChatId;
+    if (!chatId) return;
+    setIsSavingDefault(true);
+    try {
+      const res = await fetch(`/api/chats/${chatId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ defaultModel: defaultModelInput || null }),
+      });
+      if (res.ok) {
+        const newDefault = defaultModelInput || null;
+        appStore.setState((prev) => ({ ...prev, chatDefaultModel: newDefault }));
+        setChatDefaultModel(newDefault);
+        setModel(newDefault ?? "");
+        setShowChatSettings(false);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsSavingDefault(false);
+    }
+  }
+
   async function handleSend() {
     const chatId = activeChatId;
     const parentId = activeNodeId;
     if (!chatId || !input.trim() || isStreaming) return;
 
+    // Parse provider/model from override input; empty means server uses chat default/env fallback
     const slashIdx = model.indexOf("/");
-    if (slashIdx === -1) return;
-    const provider = model.slice(0, slashIdx);
-    const modelName = model.slice(slashIdx + 1);
+    const provider = slashIdx !== -1 ? model.slice(0, slashIdx) : undefined;
+    const modelName = slashIdx !== -1 ? model.slice(slashIdx + 1) : undefined;
     const content = input.trim();
     const role = isSystemMode ? "system" : "user";
 
@@ -149,8 +183,7 @@ export default function ChatPanel() {
           body: JSON.stringify({
             parentNodeId: parentId ?? undefined,
             content,
-            provider,
-            model: modelName,
+            ...(provider && modelName ? { provider, model: modelName } : {}),
             role: "system",
           }),
         });
@@ -164,6 +197,7 @@ export default function ChatPanel() {
         console.error("System node error:", err);
       } finally {
         setPendingUser(null);
+        setModel(appStore.state.chatDefaultModel ?? "");
         await refetchAndUpdate(chatId, "system");
       }
       return;
@@ -182,8 +216,7 @@ export default function ChatPanel() {
         body: JSON.stringify({
           parentNodeId: parentId ?? undefined,
           content,
-          provider,
-          model: modelName,
+          ...(provider && modelName ? { provider, model: modelName } : {}),
         }),
       });
 
@@ -235,6 +268,7 @@ export default function ChatPanel() {
       setIsStreaming(false);
       setPendingUser(null);
       setStreamContent("");
+      setModel(appStore.state.chatDefaultModel ?? "");
       await refetchAndUpdate(chatId, "user");
     }
   }
@@ -337,6 +371,58 @@ export default function ChatPanel() {
 
       {/* Input area */}
       <div class="border-t border-gray-200 p-3">
+        {/* Chat default model settings panel */}
+        <div class="mb-2 flex items-center justify-between">
+          <span class="text-xs text-gray-400">
+            {chatDefaultModel ? (
+              <>
+                Default: <span class="font-medium text-gray-600">{chatDefaultModel}</span>
+              </>
+            ) : (
+              <span class="italic">No default model set</span>
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setShowChatSettings((v) => !v);
+              setDefaultModelInput(chatDefaultModel ?? "");
+            }}
+            class="rounded px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Chat model settings"
+          >
+            ⚙ Default
+          </button>
+        </div>
+        {showChatSettings && (
+          <div class="mb-2 rounded border border-gray-200 bg-gray-50 p-2">
+            <div class="mb-1 text-xs font-medium text-gray-600">Default model for this chat:</div>
+            <div class="flex gap-1">
+              <input
+                type="text"
+                value={defaultModelInput}
+                onInput={(e) => setDefaultModelInput((e.target as HTMLInputElement).value)}
+                placeholder="provider/model-name (e.g. anthropic/claude-sonnet-4-5)"
+                class="flex-1 rounded border border-gray-200 px-2 py-1 text-xs focus:border-blue-300 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleSaveDefaultModel}
+                disabled={isSavingDefault}
+                class="rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {isSavingDefault ? "…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowChatSettings(false)}
+                class="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
         {isForkingFromNonLeaf && activeNode && (
           <div class="mb-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
             {`Branching from: ${activeNode.content.substring(0, 40)}${activeNode.content.length > 40 ? "…" : ""}`}
@@ -352,7 +438,7 @@ export default function ChatPanel() {
             type="text"
             value={model}
             onInput={(e) => setModel((e.target as HTMLInputElement).value)}
-            placeholder="provider/model (e.g. anthropic/claude-sonnet-4-5)"
+            placeholder="override model for next message (e.g. openai/gpt-4o)"
             class="w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-500 focus:border-blue-300 focus:outline-none"
           />
         </div>

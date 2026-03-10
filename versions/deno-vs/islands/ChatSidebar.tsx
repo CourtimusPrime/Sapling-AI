@@ -11,6 +11,7 @@ import { appStore } from "../stores/chat.ts";
 interface Chat {
   id: string;
   title: string | null;
+  defaultModel: string | null;
   createdAt: string;
 }
 
@@ -71,7 +72,12 @@ function SidebarInner() {
     },
     onSuccess: (newChat) => {
       qc.invalidateQueries({ queryKey: ["chats"] });
-      appStore.setState((prev) => ({ ...prev, activeChatId: newChat.id, activeNodeId: null }));
+      appStore.setState((prev) => ({
+        ...prev,
+        activeChatId: newChat.id,
+        activeNodeId: null,
+        chatDefaultModel: newChat.defaultModel,
+      }));
     },
   });
 
@@ -124,9 +130,14 @@ function SidebarInner() {
     renameMutation.mutate({ id, title });
   }
 
-  function handleChatClick(chatId: string) {
+  function handleChatClick(selectedChat: Chat) {
     if (renamingId || confirmDeleteId) return;
-    appStore.setState((prev) => ({ ...prev, activeChatId: chatId, activeNodeId: null }));
+    appStore.setState((prev) => ({
+      ...prev,
+      activeChatId: selectedChat.id,
+      activeNodeId: null,
+      chatDefaultModel: selectedChat.defaultModel,
+    }));
   }
 
   return (
@@ -220,7 +231,7 @@ function SidebarInner() {
                   <button
                     type="button"
                     class="w-full px-3 py-2 text-left"
-                    onClick={() => handleChatClick(chat.id)}
+                    onClick={() => handleChatClick(chat)}
                   >
                     <div class="truncate pr-10 text-sm font-medium text-gray-800">
                       {chat.title ?? "Untitled chat"}

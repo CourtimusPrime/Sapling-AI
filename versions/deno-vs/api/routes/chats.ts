@@ -18,14 +18,15 @@ const createChatSchema = z.object({
 });
 
 const updateChatSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().min(1).optional(),
+  defaultModel: z.string().nullable().optional(),
 });
 
 const sendMessageSchema = z.object({
   parentNodeId: z.string().nullable().optional(),
   content: z.string().min(1),
-  provider: z.string().min(1),
-  model: z.string().min(1),
+  provider: z.string().optional(),
+  model: z.string().optional(),
   role: z.enum(["user", "system"]).optional().default("user"),
 });
 
@@ -144,7 +145,7 @@ chatsRouter.get("/", async (c) => {
   return c.json(chats);
 });
 
-// PATCH /api/chats/:id — update the chat title
+// PATCH /api/chats/:id — update the chat title and/or default model
 chatsRouter.patch("/:id", async (c) => {
   let body: unknown;
   try {
@@ -156,6 +157,10 @@ chatsRouter.patch("/:id", async (c) => {
   const parsed = updateChatSchema.safeParse(body);
   if (!parsed.success) {
     return c.json({ error: parsed.error.issues[0].message }, 400);
+  }
+
+  if (parsed.data.title === undefined && parsed.data.defaultModel === undefined) {
+    return c.json({ error: "At least one of title or defaultModel must be provided" }, 400);
   }
 
   const { id: userId } = c.var.user;
@@ -171,7 +176,11 @@ chatsRouter.patch("/:id", async (c) => {
     return c.json({ error: "Chat not found" }, 404);
   }
 
-  await db.update(chat).set({ title: parsed.data.title }).where(eq(chat.id, chatId));
+  const updates: { title?: string; defaultModel?: string | null } = {};
+  if (parsed.data.title !== undefined) updates.title = parsed.data.title;
+  if (parsed.data.defaultModel !== undefined) updates.defaultModel = parsed.data.defaultModel;
+
+  await db.update(chat).set(updates).where(eq(chat.id, chatId));
 
   const [updated] = await db.select().from(chat).where(eq(chat.id, chatId)).limit(1);
   return c.json(updated);
@@ -245,11 +254,11 @@ chatsRouter.post("/:id/messages", async (c) => {
 
   const { id: userId } = c.var.user;
   const chatId = c.req.param("id");
-  const { parentNodeId, content, provider, model, role } = parsed.data;
+  const { parentNodeId, content, provider: reqProvider, model: reqModel, role } = parsed.data;
 
   // Verify the chat belongs to the user
   const [chatRow] = await db
-    .select({ id: chat.id })
+    .select({ id: chat.id, defaultModel: chat.defaultModel })
     .from(chat)
     .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
     .limit(1);
@@ -282,6 +291,29 @@ chatsRouter.post("/:id/messages", async (c) => {
       content,
     });
     return c.json({ ok: true, nodeId: systemNodeId });
+  }
+
+  // Resolve provider and model: request override → chat.defaultModel → SAPLING_DEFAULT_MODEL
+  let provider: string;
+  let model: string;
+
+  if (reqProvider && reqModel) {
+    provider = reqProvider;
+    model = reqModel;
+  } else {
+    const fallbackModel = chatRow.defaultModel ?? Deno.env.get("SAPLING_DEFAULT_MODEL") ?? "";
+    const slashIdx = fallbackModel.indexOf("/");
+    if (slashIdx === -1) {
+      return c.json(
+        {
+          error:
+            "No model configured. Set a default model for this chat or SAPLING_DEFAULT_MODEL env var.",
+        },
+        400,
+      );
+    }
+    provider = fallbackModel.slice(0, slashIdx);
+    model = fallbackModel.slice(slashIdx + 1);
   }
 
   // Verify API key is set for the requested provider
