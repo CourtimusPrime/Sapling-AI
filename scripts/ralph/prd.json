@@ -218,8 +218,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Split-view layout in routes/main.tsx: w-3/5 chat panel (left) + w-2/5 mindmap panel (right). islands/Mindmap.tsx uses d3-hierarchy (stratify + tree.nodeSize) to compute layout; nodes rendered as SVG circles color-coded by role; active node highlighted with outer ring via @tanstack/store (v0.9.2 subscribe API returns Subscription with .unsubscribe()). stores/chat.ts holds appStore with activeNodeId and activeChatId. d3-hierarchy types via @deno-types pragma (// @deno-types=\"npm:@types/d3-hierarchy@^3.1.7\"). Empty state shown when nodes array is empty."
     },
     {
       "id": "US-014",
