@@ -13,7 +13,7 @@ export interface ShimmerProps {
 
 export function Shimmer({ class: cls, children }: ShimmerProps) {
   return (
-    <span class={cn("animate-pulse text-sm text-gray-400", cls)}>
+    <span class={cn("sapling-pulse text-sm text-neutral-400", cls)}>
       {children}
     </span>
   );
@@ -28,13 +28,13 @@ export interface SkeletonBlockProps {
 
 export function SkeletonBlock({ class: cls, lines = 3 }: SkeletonBlockProps) {
   return (
-    <div class={cn("flex flex-col gap-2", cls)}>
+    <div class={cn("flex flex-col gap-2.5", cls)}>
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
           class={cn(
-            "h-3 animate-pulse rounded-full bg-gray-200",
-            i === lines - 1 ? "w-2/3" : "w-full",
+            "h-2.5 sapling-pulse rounded-full bg-neutral-200",
+            i === lines - 1 ? "w-2/5" : i === lines - 2 ? "w-3/4" : "w-full",
           )}
         />
       ))}

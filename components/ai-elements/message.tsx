@@ -4,8 +4,6 @@ function cn(...classes: (string | undefined | false | null)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 export type MessageRole = "user" | "assistant" | "system" | "tool";
 
 // ── Message ───────────────────────────────────────────────────────────────────
@@ -20,7 +18,7 @@ export function Message({ class: cls, from, children }: MessageProps) {
   return (
     <div
       class={cn(
-        "group flex w-full max-w-[95%] flex-col gap-1.5",
+        "group flex w-full max-w-[80%] flex-col gap-1",
         from === "user" ? "ml-auto items-end" : "items-start",
         cls,
       )}
@@ -52,12 +50,14 @@ export function MessageContent({
   return (
     <div
       class={cn(
-        "flex w-fit min-w-0 max-w-full flex-col gap-1 overflow-hidden rounded-2xl text-sm leading-relaxed",
+        "flex w-fit min-w-0 max-w-full flex-col gap-1 overflow-hidden text-sm leading-relaxed",
         role === "user"
-          ? "bg-blue-500 px-4 py-2.5 text-white"
+          ? "rounded-3xl bg-black px-5 py-3 text-white"
           : role === "system"
-            ? "border border-amber-200 bg-amber-50 px-3 py-2 text-xs italic text-amber-800"
-            : "bg-gray-100 px-4 py-2.5 text-gray-800",
+            ? "rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-xs italic text-neutral-500"
+            : role === "tool"
+              ? "rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 font-mono text-xs text-neutral-600"
+              : "bg-transparent px-0 py-0.5 text-[#0d0d0d]",
         cls,
       )}
       onClick={onClick}
@@ -78,12 +78,7 @@ export interface MessageLabelProps {
 
 export function MessageLabel({ class: cls, children }: MessageLabelProps) {
   return (
-    <div
-      class={cn(
-        "text-[10px] font-semibold uppercase tracking-wide text-gray-500",
-        cls,
-      )}
-    >
+    <div class={cn("text-[11px] font-semibold text-neutral-400", cls)}>
       {children}
     </div>
   );
@@ -98,7 +93,7 @@ export interface MessageTextProps {
 
 export function MessageText({ class: cls, children }: MessageTextProps) {
   return (
-    <p class={cn("whitespace-pre-wrap break-words", cls)}>
+    <p class={cn("whitespace-pre-wrap break-words text-[0.925rem] leading-[1.75]", cls)}>
       {children}
     </p>
   );
@@ -113,9 +108,7 @@ export interface MessageMetaProps {
 
 export function MessageMeta({ class: cls, children }: MessageMetaProps) {
   return (
-    <div
-      class={cn("mt-2 border-t border-gray-200 pt-2 text-xs text-gray-500", cls)}
-    >
+    <div class={cn("mt-2 border-t border-neutral-200 pt-2 text-xs text-neutral-400", cls)}>
       {children}
     </div>
   );
@@ -131,9 +124,9 @@ export interface MessageMetaRowProps {
 
 export function MessageMetaRow({ label, value, class: cls }: MessageMetaRowProps) {
   return (
-    <div class={cn("flex gap-1", cls)}>
-      <span class="font-medium text-gray-600">{label}:</span>
-      <span>{value}</span>
+    <div class={cn("flex gap-2 font-mono text-[11px]", cls)}>
+      <span class="text-neutral-400">{label}:</span>
+      <span class="text-neutral-600">{value}</span>
     </div>
   );
 }

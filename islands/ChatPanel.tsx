@@ -21,7 +21,7 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "../components/ai-elements/prompt-input.tsx";
-import { Shimmer, SkeletonBlock } from "../components/ai-elements/shimmer.tsx";
+import { SkeletonBlock } from "../components/ai-elements/shimmer.tsx";
 import { appStore } from "../stores/chat.ts";
 import type { MindmapNode } from "./Mindmap.tsx";
 
@@ -35,6 +35,28 @@ function getAncestorPath(nodes: MindmapNode[], activeNodeId: string | null): Min
     current = current.parentId ? nodeMap.get(current.parentId) : undefined;
   }
   return path;
+}
+
+function TokenBar({ count, limit }: { count: number; limit: number }) {
+  const pct = Math.min((count / limit) * 100, 100);
+  const danger = pct > 85;
+  const warn = pct > 65;
+  return (
+    <div class="flex items-center gap-3">
+      <div class="relative h-0.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
+        <div
+          class="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+          style={{
+            width: `${pct}%`,
+            background: danger ? "#ef4444" : warn ? "#f59e0b" : "#000000",
+          }}
+        />
+      </div>
+      <span class={`flex-shrink-0 font-mono text-[10px] tabular-nums ${danger ? "text-red-500" : "text-neutral-400"}`}>
+        {count.toLocaleString()}&thinsp;/&thinsp;{limit.toLocaleString()}
+      </span>
+    </div>
+  );
 }
 
 export default function ChatPanel() {
@@ -58,7 +80,6 @@ export default function ChatPanel() {
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Throttled setter for streaming content — batches updates to max ~60fps
   const throttledSetStreamContent = useRef(
     throttle((text: string) => setStreamContent(text), { wait: 16 }),
   ).current;
@@ -72,7 +93,7 @@ export default function ChatPanel() {
     return unsub;
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId is intentional trigger dep; chatDefaultModel read at effect time
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId is intentional trigger dep
   useEffect(() => {
     setExpandedMetaId(null);
     setShowChatSettings(false);
@@ -88,10 +109,7 @@ export default function ChatPanel() {
     (async () => {
       try {
         const res = await fetch(`/api/chats/${activeChatId}/nodes`);
-        if (!res.ok) {
-          setNodes([]);
-          return;
-        }
+        if (!res.ok) { setNodes([]); return; }
         const data = (await res.json()) as MindmapNode[];
         setNodes(data);
       } catch {
@@ -100,7 +118,6 @@ export default function ChatPanel() {
     })();
   }, [activeChatId]);
 
-  // Scroll to bottom when conversation updates
   // biome-ignore lint/correctness/useExhaustiveDependencies: bottomRef is stable
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,15 +126,14 @@ export default function ChatPanel() {
   if (!activeChatId) {
     return (
       <ConversationEmptyState
-        title="No chat selected"
-        description="Select or create a chat to get started."
+        title="No conversation selected"
+        description="Select or start a new conversation."
         class="h-full"
       />
     );
   }
 
   const path = getAncestorPath(nodes, activeNodeId);
-
   const childParentIds = new Set(
     nodes.map((n) => n.parentId).filter((id): id is string => id !== null),
   );
@@ -132,28 +148,18 @@ export default function ChatPanel() {
         setNodes(data);
         const newest =
           role === "user"
-            ? data
-                .filter((n) => n.role === "assistant")
-                .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]
-            : data
-                .filter((n) => n.role === "system")
-                .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
+            ? data.filter((n) => n.role === "assistant").sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]
+            : data.filter((n) => n.role === "system").sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
         appStore.setState((prev) => ({
           ...prev,
           activeNodeId: newest?.id ?? prev.activeNodeId,
           nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
         }));
       } else {
-        appStore.setState((prev) => ({
-          ...prev,
-          nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
-        }));
+        appStore.setState((prev) => ({ ...prev, nodeRefreshTrigger: prev.nodeRefreshTrigger + 1 }));
       }
     } catch {
-      appStore.setState((prev) => ({
-        ...prev,
-        nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
-      }));
+      appStore.setState((prev) => ({ ...prev, nodeRefreshTrigger: prev.nodeRefreshTrigger + 1 }));
     }
   }
 
@@ -174,11 +180,8 @@ export default function ChatPanel() {
         setModel(newDefault ?? "");
         setShowChatSettings(false);
       }
-    } catch {
-      // ignore
-    } finally {
-      setIsSavingDefault(false);
-    }
+    } catch { /* ignore */ }
+    finally { setIsSavingDefault(false); }
   }
 
   async function handleSend() {
@@ -209,9 +212,7 @@ export default function ChatPanel() {
           }),
         });
         if (!res.ok) {
-          const err = (await res.json().catch(() => ({ error: "Request failed" }))) as {
-            error: string;
-          };
+          const err = (await res.json().catch(() => ({ error: "Request failed" }))) as { error: string };
           console.error("Send failed:", err.error);
         }
       } catch (err) {
@@ -227,7 +228,6 @@ export default function ChatPanel() {
     setPendingUser(content);
     setIsStreaming(true);
     setStreamContent("");
-
     let accumulated = "";
 
     try {
@@ -242,9 +242,7 @@ export default function ChatPanel() {
       });
 
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({ error: "Request failed" }))) as {
-          error: string;
-        };
+        const err = (await res.json().catch(() => ({ error: "Request failed" }))) as { error: string };
         console.error("Send failed:", err.error);
         return;
       }
@@ -254,10 +252,7 @@ export default function ChatPanel() {
       if (xCount) setTokenCount(Number(xCount));
       if (xLimit) setTokenLimit(Number(xLimit));
 
-      if (!res.body) {
-        console.error("No response body");
-        return;
-      }
+      if (!res.body) { console.error("No response body"); return; }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -277,9 +272,7 @@ export default function ChatPanel() {
         }
       }
 
-      if (buf.startsWith("data: ")) {
-        accumulated += buf.slice(6);
-      }
+      if (buf.startsWith("data: ")) accumulated += buf.slice(6);
       setStreamContent(accumulated);
     } catch (err) {
       console.error("Stream error:", err);
@@ -293,10 +286,10 @@ export default function ChatPanel() {
   }
 
   return (
-    <div class="flex h-full flex-col">
+    <div class="flex h-full flex-col bg-white">
       {/* ── Message list ── */}
       <Conversation class="flex-1" stickToBottom>
-        <ConversationContent>
+        <ConversationContent class="mx-auto w-full max-w-2xl px-4 pb-6 pt-8">
           {nodes.length === 0 && !pendingUser && (
             <ConversationEmptyState
               title="No messages yet"
@@ -306,7 +299,7 @@ export default function ChatPanel() {
           {path.length === 0 && nodes.length > 0 && !pendingUser && (
             <ConversationEmptyState
               title="No node selected"
-              description="Click a node in the mindmap to view the conversation."
+              description="Click a node in the mindmap to view this branch."
             />
           )}
 
@@ -319,7 +312,11 @@ export default function ChatPanel() {
               )}
               <MessageContent
                 role={node.role as "user" | "assistant" | "system"}
-                class={node.role === "assistant" ? "cursor-pointer" : undefined}
+                class={
+                  node.role === "assistant"
+                    ? "cursor-pointer rounded-lg transition-colors hover:bg-neutral-50 -mx-1 px-1"
+                    : undefined
+                }
                 onClick={() => {
                   if (node.role === "assistant") {
                     setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
@@ -338,17 +335,14 @@ export default function ChatPanel() {
                     <MessageMetaRow label="Provider" value={node.metadata.provider} />
                     <MessageMetaRow label="Model" value={node.metadata.model} />
                     <MessageMetaRow label="Temperature" value={node.metadata.temperature} />
-                    <MessageMetaRow
-                      label="Tokens"
-                      value={node.metadata.tokenCount.toLocaleString()}
-                    />
+                    <MessageMetaRow label="Tokens" value={node.metadata.tokenCount.toLocaleString()} />
                   </MessageMeta>
                 )}
               </MessageContent>
             </Message>
           ))}
 
-          {/* Optimistic pending user message */}
+          {/* Optimistic pending message */}
           {pendingUser && (
             <Message from={isSystemMode ? "system" : "user"}>
               {isSystemMode && <MessageLabel>System</MessageLabel>}
@@ -358,15 +352,15 @@ export default function ChatPanel() {
             </Message>
           )}
 
-          {/* Streaming assistant response */}
+          {/* Streaming response */}
           {isStreaming && (
             <Message from="assistant">
               <MessageLabel>Assistant</MessageLabel>
               <MessageContent role="assistant">
                 {streamContent ? (
-                  <MessageText>{streamContent}</MessageText>
+                  <MessageText class="sapling-cursor">{streamContent}</MessageText>
                 ) : (
-                  <SkeletonBlock lines={2} class="w-48" />
+                  <SkeletonBlock lines={2} class="w-56" />
                 )}
               </MessageContent>
             </Message>
@@ -377,129 +371,119 @@ export default function ChatPanel() {
       </Conversation>
 
       {/* ── Input area ── */}
-      <div class="border-t border-gray-100 bg-white px-4 py-3">
-        {/* Default model row */}
-        <div class="mb-2.5 flex items-center justify-between">
-          <span class="text-xs text-gray-400">
-            {chatDefaultModel ? (
-              <>
-                Default:{" "}
-                <span class="font-medium text-gray-600">{chatDefaultModel}</span>
-              </>
-            ) : (
-              <span class="italic">No default model</span>
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setShowChatSettings((v) => !v);
-              setDefaultModelInput(chatDefaultModel ?? "");
-            }}
-            class="rounded-md px-1.5 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            title="Chat model settings"
-          >
-            ⚙ Default
-          </button>
-        </div>
+      <div class="border-t border-neutral-100 bg-white px-4 py-4">
+        <div class="mx-auto w-full max-w-2xl flex flex-col gap-2">
+          {/* Model row */}
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-[11px] text-neutral-400">
+              {chatDefaultModel ? (
+                <>{chatDefaultModel}</>
+              ) : (
+                <span class="italic opacity-60">no default model</span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setShowChatSettings((v) => !v);
+                setDefaultModelInput(chatDefaultModel ?? "");
+              }}
+              class="text-[11px] text-neutral-400 transition-colors hover:text-neutral-600"
+            >
+              {showChatSettings ? "Close" : "Configure"}
+            </button>
+          </div>
 
-        {/* Default model settings panel */}
-        {showChatSettings && (
-          <div class="mb-2.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
-            <div class="mb-1.5 text-xs font-medium text-gray-600">
-              Default model for this chat:
+          {/* Chat settings panel */}
+          {showChatSettings && (
+            <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-3">
+              <div class="mb-2 text-[11px] font-medium text-neutral-500">Default model</div>
+              <div class="flex gap-1.5">
+                <input
+                  type="text"
+                  value={defaultModelInput}
+                  onInput={(e) => setDefaultModelInput((e.target as HTMLInputElement).value)}
+                  placeholder="provider/model-name"
+                  class="flex-1 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveDefaultModel}
+                  disabled={isSavingDefault}
+                  class="rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-40"
+                >
+                  {isSavingDefault ? "…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowChatSettings(false)}
+                  class="rounded-lg px-2 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-neutral-100"
+                >
+                  ×
+                </button>
+              </div>
             </div>
-            <div class="flex gap-1.5">
-              <input
-                type="text"
-                value={defaultModelInput}
-                onInput={(e) =>
-                  setDefaultModelInput((e.target as HTMLInputElement).value)
-                }
-                placeholder="provider/model-name (e.g. anthropic/claude-sonnet-4-5)"
-                class="flex-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs focus:border-blue-300 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={handleSaveDefaultModel}
-                disabled={isSavingDefault}
-                class="rounded-lg bg-blue-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-50"
-              >
-                {isSavingDefault ? "…" : "Save"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowChatSettings(false)}
-                class="rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
-              >
-                ×
-              </button>
+          )}
+
+          {/* Fork warning */}
+          {isForkingFromNonLeaf && activeNode && (
+            <div class="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <span class="font-medium">Branching from:</span>
+              {`${activeNode.content.substring(0, 48)}${activeNode.content.length > 48 ? "…" : ""}`}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Fork warning */}
-        {isForkingFromNonLeaf && activeNode && (
-          <div class="mb-2.5 flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
-            <span class="font-medium">Branching from:</span>
-            {`${activeNode.content.substring(0, 40)}${activeNode.content.length > 40 ? "…" : ""}`}
-          </div>
-        )}
+          {/* Token bar */}
+          {tokenLimit > 0 && <TokenBar count={tokenCount} limit={tokenLimit} />}
 
-        {/* Token usage */}
-        {tokenLimit > 0 && (
-          <div class="mb-2 text-right text-xs text-gray-400">
-            {tokenCount.toLocaleString()} / {tokenLimit.toLocaleString()} tokens
-          </div>
-        )}
-
-        {/* Prompt Input */}
-        <PromptInput>
-          <PromptInputTextarea
-            value={input}
-            disabled={isStreaming}
-            rows={2}
-            placeholder={
-              isSystemMode
-                ? "Type a system instruction… (Enter to send)"
-                : "Type a message… (Enter to send, Shift+Enter for newline)"
-            }
-            onValueChange={setInput}
-            onSubmit={handleSend}
-          />
-          <PromptInputFooter>
-            <PromptInputActions>
-              <PromptInputButton
-                active={isSystemMode}
-                disabled={isStreaming}
-                onClick={() => setIsSystemMode((v) => !v)}
-                title="Toggle system message mode"
-              >
-                ⚙{isSystemMode ? " System (on)" : " System"}
-              </PromptInputButton>
-              <input
-                type="text"
-                value={model}
-                onInput={(e) => setModel((e.target as HTMLInputElement).value)}
-                placeholder="override model (e.g. openai/gpt-4o)"
-                class="h-7 rounded-lg border border-gray-200 px-2 text-xs text-gray-500 focus:border-blue-300 focus:outline-none"
-              />
-            </PromptInputActions>
-            <PromptInputSubmit
-              disabled={!input.trim()}
-              isLoading={isStreaming}
-              variant={isSystemMode ? "system" : "default"}
-              onClick={handleSend}
-              aria-label="Send message"
+          {/* Prompt input */}
+          <PromptInput>
+            <PromptInputTextarea
+              value={input}
+              disabled={isStreaming}
+              rows={2}
+              placeholder={
+                isSystemMode
+                  ? "System instruction… (Enter to send)"
+                  : "Message… (Enter to send, Shift+Enter for newline)"
+              }
+              onValueChange={setInput}
+              onSubmit={handleSend}
             />
-          </PromptInputFooter>
-        </PromptInput>
+            <PromptInputFooter>
+              <PromptInputActions>
+                <PromptInputButton
+                  active={isSystemMode}
+                  disabled={isStreaming}
+                  onClick={() => setIsSystemMode((v) => !v)}
+                  title="Toggle system message mode"
+                >
+                  {isSystemMode ? "⚙ System on" : "⚙ System"}
+                </PromptInputButton>
+                <input
+                  type="text"
+                  value={model}
+                  onInput={(e) => setModel((e.target as HTMLInputElement).value)}
+                  placeholder="model override"
+                  class="h-7 rounded-lg border border-neutral-200 bg-transparent px-2 font-mono text-xs text-neutral-500 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
+                />
+              </PromptInputActions>
+              <PromptInputSubmit
+                disabled={!input.trim()}
+                isLoading={isStreaming}
+                variant={isSystemMode ? "system" : "default"}
+                onClick={handleSend}
+                aria-label="Send message"
+              />
+            </PromptInputFooter>
+          </PromptInput>
 
-        {isSystemMode && (
-          <p class="mt-1.5 text-center text-xs text-gray-400">
-            Next message will be a system node
-          </p>
-        )}
+          {isSystemMode && (
+            <p class="text-center text-xs text-neutral-400">
+              Next message will be a system node
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

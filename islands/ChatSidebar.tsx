@@ -39,7 +39,6 @@ function SidebarInner() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync activeChatId with appStore
   useEffect(() => {
     const unsub = appStore.subscribe(({ currentVal }) => {
       setActiveChatId(currentVal.activeChatId);
@@ -141,28 +140,44 @@ function SidebarInner() {
   }
 
   return (
-    <aside class="flex h-full w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white">
-      {/* Sidebar header */}
-      <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-        <span class="text-sm font-semibold text-gray-700">Chats</span>
+    <aside class="flex h-full w-60 flex-shrink-0 flex-col border-r border-neutral-200 bg-neutral-50">
+      {/* Header */}
+      <div class="flex items-center justify-between px-4 py-3">
+        <span class="text-xs font-semibold text-neutral-400">Conversations</span>
         <button
           type="button"
           onClick={() => createMutation.mutate()}
           disabled={createMutation.isPending}
-          class="rounded-md px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50"
-          title="New chat"
+          class="flex h-6 w-6 items-center justify-center rounded-md text-neutral-400 transition-all hover:bg-neutral-200 hover:text-neutral-700 disabled:opacity-40"
+          title="New conversation"
+          aria-label="New conversation"
         >
-          + New
+          {createMutation.isPending ? (
+            <span class="block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+          ) : (
+            <svg viewBox="0 0 14 14" fill="none" class="h-3.5 w-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <path d="M7 2v10M2 7h10" />
+            </svg>
+          )}
         </button>
       </div>
 
       {/* Chat list */}
-      <div class="flex-1 overflow-y-auto py-1">
-        {isLoading && <p class="px-4 py-2 text-xs text-gray-400">Loading…</p>}
-        {isError && <p class="px-4 py-2 text-xs text-red-500">Failed to load chats</p>}
-        {!isLoading && !isError && chats.length === 0 && (
-          <p class="px-4 py-4 text-center text-xs text-gray-400">No chats yet</p>
+      <div class="flex-1 overflow-y-auto px-2 pb-2">
+        {isLoading && (
+          <div class="flex flex-col gap-2 px-2 py-3">
+            {[70, 55, 65].map((w) => (
+              <div key={w} class="h-2 sapling-pulse rounded-full bg-neutral-200" style={{ width: `${w}%` }} />
+            ))}
+          </div>
         )}
+        {isError && (
+          <p class="px-2 py-3 text-xs text-red-400">Failed to load conversations</p>
+        )}
+        {!isLoading && !isError && chats.length === 0 && (
+          <p class="px-2 py-4 text-center text-xs text-neutral-400">No conversations yet</p>
+        )}
+
         {chats.map((chat) => {
           const isActive = activeChatId === chat.id;
           const isRenaming = renamingId === chat.id;
@@ -171,7 +186,9 @@ function SidebarInner() {
           return (
             <div
               key={chat.id}
-              class={`group relative ${isActive ? "bg-blue-50" : "hover:bg-gray-50"}`}
+              class={`group relative rounded-lg transition-colors ${
+                isActive ? "bg-white shadow-sm" : "hover:bg-neutral-100"
+              }`}
             >
               {isRenaming ? (
                 <div class="flex flex-col gap-1.5 px-3 py-2">
@@ -184,21 +201,21 @@ function SidebarInner() {
                       if (e.key === "Enter") commitRename(chat.id);
                       if (e.key === "Escape") cancelRename();
                     }}
-                    class="w-full rounded border border-blue-300 px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    class="w-full rounded-md border border-neutral-300 px-2 py-1 text-xs focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
                   />
                   <div class="flex gap-1">
                     <button
                       type="button"
                       onClick={() => commitRename(chat.id)}
                       disabled={renameMutation.isPending || !renameValue.trim()}
-                      class="rounded px-2 py-0.5 text-xs font-medium text-blue-600 hover:bg-blue-100 disabled:opacity-40"
+                      class="rounded px-2 py-0.5 text-xs font-medium text-black hover:bg-neutral-100 disabled:opacity-40"
                     >
                       Save
                     </button>
                     <button
                       type="button"
                       onClick={cancelRename}
-                      class="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                      class="rounded px-2 py-0.5 text-xs text-neutral-500 hover:bg-neutral-100"
                     >
                       Cancel
                     </button>
@@ -206,7 +223,7 @@ function SidebarInner() {
                 </div>
               ) : isConfirmingDelete ? (
                 <div class="flex flex-col gap-1.5 px-3 py-2">
-                  <p class="text-xs text-red-600">Delete this chat?</p>
+                  <p class="text-xs text-red-500">Delete this conversation?</p>
                   <div class="flex gap-1">
                     <button
                       type="button"
@@ -219,7 +236,7 @@ function SidebarInner() {
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(null)}
-                      class="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                      class="rounded px-2 py-0.5 text-xs text-neutral-500 hover:bg-neutral-100"
                     >
                       Cancel
                     </button>
@@ -227,27 +244,29 @@ function SidebarInner() {
                 </div>
               ) : (
                 <>
-                  {/* Main click target — proper button for accessibility */}
                   <button
                     type="button"
-                    class="w-full px-3 py-2 text-left"
+                    class="w-full px-3 py-2.5 text-left"
                     onClick={() => handleChatClick(chat)}
                   >
-                    <div class="truncate pr-10 text-sm font-medium text-gray-800">
-                      {chat.title ?? "Untitled chat"}
+                    <div class={`truncate pr-10 text-sm leading-snug ${
+                      isActive ? "font-medium text-black" : "text-neutral-600"
+                    }`}>
+                      {chat.title ?? "New conversation"}
                     </div>
-                    <div class="text-xs text-gray-400">{formatDate(chat.createdAt)}</div>
+                    <div class="mt-0.5 text-xs text-neutral-400">{formatDate(chat.createdAt)}</div>
                   </button>
-                  {/* Action buttons — shown on hover, absolutely positioned as sibling */}
-                  <div class="absolute right-1 top-1/2 hidden -translate-y-1/2 gap-0.5 group-hover:flex">
+                  <div class="absolute right-1.5 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 group-hover:flex">
                     <button
                       type="button"
                       onClick={() => startRename(chat)}
-                      class="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                      class="flex h-6 w-6 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-neutral-600"
                       title="Rename"
-                      aria-label="Rename chat"
+                      aria-label="Rename"
                     >
-                      ✎
+                      <svg viewBox="0 0 12 12" fill="none" class="h-3 w-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8.5 1.5 10.5 3.5 4 10H2v-2L8.5 1.5z" />
+                      </svg>
                     </button>
                     <button
                       type="button"
@@ -255,11 +274,13 @@ function SidebarInner() {
                         setRenamingId(null);
                         setConfirmDeleteId(chat.id);
                       }}
-                      class="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-600"
+                      class="flex h-6 w-6 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500"
                       title="Delete"
-                      aria-label="Delete chat"
+                      aria-label="Delete"
                     >
-                      ✕
+                      <svg viewBox="0 0 12 12" fill="none" class="h-3 w-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                        <path d="M2 2l8 8M10 2 2 10" />
+                      </svg>
                     </button>
                   </div>
                 </>

@@ -17,23 +17,27 @@ export const handler = define.handlers({
     }
     const nodes: MindmapNode[] = [];
     return ctx.render(
-      <div class="flex h-screen flex-col bg-gray-50">
-        <header class="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
-          <h1 class="text-lg font-bold text-gray-900">Sapling</h1>
-          <div class="flex items-center gap-3">
-            <span class="text-sm text-gray-500">{user.email}</span>
+      <div class="flex h-screen flex-col bg-white">
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <header class="flex flex-shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-5 py-2.5">
+          <span class="text-[15px] font-semibold tracking-tight text-black">
+            Sapling
+          </span>
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-neutral-400">{user.email}</span>
             <SettingsPanel />
           </div>
         </header>
+
+        {/* ── Main columns ────────────────────────────────────────────────── */}
         <div class="flex flex-1 overflow-hidden">
-          {/* Chat sidebar */}
           <ChatSidebar />
-          {/* Chat panel */}
-          <section class="flex h-full flex-1 flex-col border-r border-gray-200 bg-white">
+
+          <section class="flex h-full flex-1 flex-col border-r border-neutral-200 bg-white">
             <ChatPanel />
           </section>
-          {/* Mindmap panel */}
-          <section class="h-full w-2/5 bg-gray-50 p-4">
+
+          <section class="h-full w-[38%] bg-neutral-50 p-3">
             <Mindmap nodes={nodes} />
           </section>
         </div>

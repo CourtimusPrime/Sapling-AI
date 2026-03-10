@@ -7,6 +7,13 @@ export default defineConfig({
   plugins: [
     UnoCSS({
       presets: [presetWind()],
+      content: {
+        filesystem: [
+          "components/**/*.{ts,tsx}",
+          "islands/**/*.{ts,tsx}",
+          "routes/**/*.{ts,tsx}",
+        ],
+      },
     }),
     fresh(),
   ],

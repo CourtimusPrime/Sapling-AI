@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 
 // ---------------------------------------------------------------------------
-// Primitive UI components (reuse same pattern as AuthForm)
+// Shared primitives
 // ---------------------------------------------------------------------------
 
 function Input({
@@ -11,7 +11,6 @@ function Input({
   value,
   onInput,
   placeholder,
-  class: cls,
   disabled,
 }: {
   id?: string;
@@ -19,7 +18,6 @@ function Input({
   value?: string;
   onInput?: (e: Event) => void;
   placeholder?: string;
-  class?: string;
   disabled?: boolean;
 }) {
   return (
@@ -30,7 +28,7 @@ function Input({
       onInput={onInput}
       placeholder={placeholder}
       disabled={disabled}
-      class={`w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${cls ?? ""}`}
+      class="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm text-black placeholder:text-neutral-300 transition-colors focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-40"
     />
   );
 }
@@ -39,27 +37,19 @@ interface ButtonProps {
   type?: "button" | "submit" | "reset";
   disabled?: boolean;
   onClick?: () => void;
-  class?: string;
   variant?: "primary" | "danger" | "ghost";
   children?: ComponentChildren;
 }
 
-function Button({
-  type = "button",
-  disabled,
-  onClick,
-  class: cls,
-  variant = "primary",
-  children,
-}: ButtonProps) {
-  const variantCls =
+function Button({ type = "button", disabled, onClick, variant = "primary", children }: ButtonProps) {
+  const cls =
     variant === "primary"
-      ? "rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+      ? "rounded-xl bg-black px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
       : variant === "danger"
-        ? "rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-        : "rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50";
+        ? "rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+        : "rounded-xl px-3 py-1.5 text-sm font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 disabled:cursor-not-allowed disabled:opacity-40";
   return (
-    <button type={type} disabled={disabled} onClick={onClick} class={`${variantCls} ${cls ?? ""}`}>
+    <button type={type} disabled={disabled} onClick={onClick} class={cls}>
       {children}
     </button>
   );
@@ -74,25 +64,29 @@ interface ApiKeyStatus {
   isSet: boolean;
 }
 
-interface ProviderRowProps {
-  provider: string;
-  label: string;
-  isSet: boolean;
-  onSave: (provider: string, key: string) => Promise<void>;
-  onRemove: (provider: string) => Promise<void>;
-}
-
-// ---------------------------------------------------------------------------
-// Provider row
-// ---------------------------------------------------------------------------
-
 const PROVIDERS = [
   { id: "openai", label: "OpenAI" },
   { id: "anthropic", label: "Anthropic" },
   { id: "openrouter", label: "OpenRouter" },
 ];
 
-function ProviderRow({ provider, label, isSet, onSave, onRemove }: ProviderRowProps) {
+// ---------------------------------------------------------------------------
+// Provider row
+// ---------------------------------------------------------------------------
+
+function ProviderRow({
+  provider,
+  label,
+  isSet,
+  onSave,
+  onRemove,
+}: {
+  provider: string;
+  label: string;
+  isSet: boolean;
+  onSave: (provider: string, key: string) => Promise<void>;
+  onRemove: (provider: string) => Promise<void>;
+}) {
   const [editing, setEditing] = useState(false);
   const [keyValue, setKeyValue] = useState("");
   const [saving, setSaving] = useState(false);
@@ -101,10 +95,7 @@ function ProviderRow({ provider, label, isSet, onSave, onRemove }: ProviderRowPr
   const [error, setError] = useState("");
 
   async function handleSave() {
-    if (!keyValue.trim()) {
-      setError("Key cannot be empty");
-      return;
-    }
+    if (!keyValue.trim()) { setError("Key cannot be empty"); return; }
     setSaving(true);
     setError("");
     try {
@@ -119,10 +110,7 @@ function ProviderRow({ provider, label, isSet, onSave, onRemove }: ProviderRowPr
   }
 
   async function handleRemove() {
-    if (!confirmRemove) {
-      setConfirmRemove(true);
-      return;
-    }
+    if (!confirmRemove) { setConfirmRemove(true); return; }
     setRemoving(true);
     setError("");
     try {
@@ -135,33 +123,27 @@ function ProviderRow({ provider, label, isSet, onSave, onRemove }: ProviderRowPr
     }
   }
 
-  function handleCancelRemove() {
-    setConfirmRemove(false);
-  }
-
   return (
-    <div class="rounded-lg border border-gray-200 p-4">
+    <div class="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-medium text-gray-800">{label}</span>
+        <div class="flex items-center gap-2.5">
+          <span class="text-sm font-medium text-black">{label}</span>
           {isSet ? (
-            <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
-              ● Set
+            <span class="rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-500">
+              ● active
             </span>
           ) : (
-            <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-              ○ Not set
+            <span class="rounded-full border border-neutral-100 px-2 py-0.5 text-[11px] text-neutral-400">
+              ○ not set
             </span>
           )}
         </div>
-        <div class="flex gap-2">
+
+        <div class="flex items-center gap-1.5">
           {!editing && (
             <Button
               variant="ghost"
-              onClick={() => {
-                setEditing(true);
-                setConfirmRemove(false);
-              }}
+              onClick={() => { setEditing(true); setConfirmRemove(false); }}
             >
               {isSet ? "Replace" : "Add key"}
             </Button>
@@ -172,14 +154,12 @@ function ProviderRow({ provider, label, isSet, onSave, onRemove }: ProviderRowPr
             </Button>
           )}
           {isSet && !editing && confirmRemove && (
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-red-600">Are you sure?</span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs text-red-500">Remove key?</span>
               <Button variant="danger" disabled={removing} onClick={handleRemove}>
-                {removing ? "Removing…" : "Yes, remove"}
+                {removing ? "Removing…" : "Confirm"}
               </Button>
-              <Button variant="ghost" onClick={handleCancelRemove}>
-                Cancel
-              </Button>
+              <Button variant="ghost" onClick={() => setConfirmRemove(false)}>Cancel</Button>
             </div>
           )}
         </div>
@@ -191,22 +171,18 @@ function ProviderRow({ provider, label, isSet, onSave, onRemove }: ProviderRowPr
             type="password"
             value={keyValue}
             onInput={(e) => setKeyValue((e.target as HTMLInputElement).value)}
-            placeholder={`Enter your ${label} API key`}
+            placeholder={`Paste your ${label} API key`}
             disabled={saving}
           />
-          {error && <p class="text-xs text-red-600">{error}</p>}
-          <div class="flex gap-2">
+          {error && <p class="text-xs text-red-500">{error}</p>}
+          <div class="flex gap-1.5">
             <Button variant="primary" disabled={saving} onClick={handleSave}>
               {saving ? "Saving…" : "Save"}
             </Button>
             <Button
               variant="ghost"
               disabled={saving}
-              onClick={() => {
-                setEditing(false);
-                setKeyValue("");
-                setError("");
-              }}
+              onClick={() => { setEditing(false); setKeyValue(""); setError(""); }}
             >
               Cancel
             </Button>
@@ -218,15 +194,10 @@ function ProviderRow({ provider, label, isSet, onSave, onRemove }: ProviderRowPr
 }
 
 // ---------------------------------------------------------------------------
-// SettingsPanel island (modal)
+// Modal
 // ---------------------------------------------------------------------------
 
-interface SettingsPanelProps {
-  open: boolean;
-  onClose: () => void;
-}
-
-function SettingsPanelModal({ open, onClose }: SettingsPanelProps) {
+function SettingsPanelModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [statuses, setStatuses] = useState<ApiKeyStatus[]>([]);
   const [loadError, setLoadError] = useState("");
 
@@ -236,8 +207,7 @@ function SettingsPanelModal({ open, onClose }: SettingsPanelProps) {
       try {
         const res = await fetch("/api/settings/api-key");
         if (!res.ok) throw new Error("Failed to load API key settings");
-        const data = (await res.json()) as ApiKeyStatus[];
-        setStatuses(data);
+        setStatuses((await res.json()) as ApiKeyStatus[]);
       } catch (err) {
         setLoadError(err instanceof Error ? err.message : "Error loading settings");
       }
@@ -254,20 +224,15 @@ function SettingsPanelModal({ open, onClose }: SettingsPanelProps) {
       const data = (await res.json()) as { error?: string };
       throw new Error(data.error ?? "Failed to save");
     }
-    // Update local status optimistically
     setStatuses((prev) => {
       const existing = prev.find((s) => s.provider === provider);
-      if (existing) {
-        return prev.map((s) => (s.provider === provider ? { ...s, isSet: true } : s));
-      }
+      if (existing) return prev.map((s) => (s.provider === provider ? { ...s, isSet: true } : s));
       return [...prev, { provider, isSet: true }];
     });
   }
 
   async function handleRemove(provider: string) {
-    const res = await fetch(`/api/settings/api-key/${encodeURIComponent(provider)}`, {
-      method: "DELETE",
-    });
+    const res = await fetch(`/api/settings/api-key/${encodeURIComponent(provider)}`, { method: "DELETE" });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
       throw new Error(data.error ?? "Failed to remove");
@@ -279,37 +244,38 @@ function SettingsPanelModal({ open, onClose }: SettingsPanelProps) {
 
   return (
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      class="fixed inset-0 z-50 flex items-end justify-center bg-black/20 sm:items-center"
       role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
     >
-      <div class="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/5">
+        {/* Header */}
         <div class="mb-5 flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">API Keys</h2>
+          <h2 class="text-base font-semibold text-black">API Keys</h2>
           <button
             type="button"
             onClick={onClose}
-            class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            class="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600"
             aria-label="Close settings"
           >
-            ✕
+            <svg viewBox="0 0 12 12" fill="none" class="h-3 w-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <path d="M1 1l10 10M11 1 1 11" />
+            </svg>
           </button>
         </div>
 
         {loadError && (
-          <p class="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{loadError}</p>
+          <p class="mb-4 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-sm text-red-600">
+            {loadError}
+          </p>
         )}
 
-        <p class="mb-4 text-sm text-gray-500">
-          Your keys are encrypted at rest and never sent to the browser after saving.
+        <p class="mb-4 text-sm text-neutral-400">
+          Keys are encrypted at rest and never returned to the browser after saving.
         </p>
 
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-2">
           {PROVIDERS.map(({ id, label }) => {
             const status = statuses.find((s) => s.provider === id);
             return (
@@ -330,7 +296,7 @@ function SettingsPanelModal({ open, onClose }: SettingsPanelProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Exported island: wraps the trigger button + modal state
+// Export
 // ---------------------------------------------------------------------------
 
 export default function SettingsPanel() {
@@ -341,10 +307,14 @@ export default function SettingsPanel() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        class="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100"
+        class="flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
         title="API key settings"
       >
-        ⚙ Settings
+        <svg viewBox="0 0 16 16" fill="none" class="h-3.5 w-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="2.5" />
+          <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" />
+        </svg>
+        Settings
       </button>
       <SettingsPanelModal open={open} onClose={() => setOpen(false)} />
     </>

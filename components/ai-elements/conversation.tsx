@@ -10,7 +10,6 @@ function cn(...classes: (string | undefined | false | null)[]): string {
 export interface ConversationProps {
   children: ComponentChildren;
   class?: string;
-  /** When true, auto-scrolls to the bottom on content changes */
   stickToBottom?: boolean;
 }
 
@@ -28,7 +27,7 @@ export function Conversation({ class: cls, children, stickToBottom }: Conversati
       ref={ref}
       role="log"
       aria-live="polite"
-      class={cn("relative flex-1 overflow-y-auto", cls)}
+      class={cn("relative flex-1 overflow-y-auto bg-white", cls)}
     >
       {children}
     </div>
@@ -44,7 +43,7 @@ export interface ConversationContentProps {
 
 export function ConversationContent({ class: cls, children }: ConversationContentProps) {
   return (
-    <div class={cn("flex flex-col gap-4 p-4", cls)}>
+    <div class={cn("flex flex-col gap-6 p-6", cls)}>
       {children}
     </div>
   );
@@ -73,9 +72,9 @@ export function ConversationEmptyState({
       )}
     >
       {children ?? (
-        <div class="space-y-1">
-          <h3 class="text-sm font-medium text-gray-700">{title}</h3>
-          {description && <p class="text-sm text-gray-400">{description}</p>}
+        <div class="space-y-1.5">
+          <h3 class="text-sm font-semibold text-neutral-500">{title}</h3>
+          {description && <p class="text-sm text-neutral-400">{description}</p>}
         </div>
       )}
     </div>

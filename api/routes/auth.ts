@@ -1,7 +1,7 @@
 import { db } from "@/db/client.ts";
 import { user } from "@/db/schema.ts";
 import { type AuthEnv, requireAuth } from "@/lib/auth.ts";
-import { hashPassword, verifyPassword } from "@/lib/hash.ts";
+import { verifyPassword } from "@/lib/hash.ts";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
@@ -22,49 +22,8 @@ async function signToken(id: string, email: string): Promise<string> {
     .sign(getSecret());
 }
 
-const signupSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
-
-authRouter.post("/signup", async (c) => {
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "Invalid JSON body" }, 400);
-  }
-
-  const parsed = signupSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ error: parsed.error.issues[0].message }, 400);
-  }
-
-  const { email, password } = parsed.data;
-
-  const [existing] = await db
-    .select({ id: user.id })
-    .from(user)
-    .where(eq(user.email, email))
-    .limit(1);
-
-  if (existing) {
-    return c.json({ error: "Email already registered" }, 409);
-  }
-
-  const passwordHash = await hashPassword(password);
-  const id = crypto.randomUUID();
-  await db.insert(user).values({ id, email, passwordHash });
-
-  const token = await signToken(id, email);
-  setCookie(c, "auth", token, {
-    httpOnly: true,
-    maxAge: 60 * 60 * 24 * 7,
-    path: "/",
-    sameSite: "Lax",
-  });
-
-  return c.json({ id, email }, 201);
+authRouter.post("/signup", (c) => {
+  return c.json({ error: "Registration is not available" }, 403);
 });
 
 const signinSchema = z.object({

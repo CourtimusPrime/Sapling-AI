@@ -1,0 +1,1 @@
+- Always check available plugins and use whichever are relevant to the current task.
