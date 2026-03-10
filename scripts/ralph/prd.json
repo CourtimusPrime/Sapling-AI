@@ -325,8 +325,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 19,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "islands/Mindmap.tsx: added hoveredNodeId state; onMouseEnter/onMouseLeave on each node <g> to track hover; fork button <g> (translate(18,-18)) visible when hovered — shows blue circle with Y-fork SVG path; onClick stops propagation and calls handleNodeClick (same as clicking the node). islands/ChatPanel.tsx: computes childParentIds set and isForkingFromNonLeaf boolean; shows amber 'Branching from: [first 40 chars]…' pill in input area when active node is non-leaf."
     },
     {
       "id": "US-020",
