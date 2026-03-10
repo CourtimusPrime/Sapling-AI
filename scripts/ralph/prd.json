@@ -273,8 +273,8 @@
         "Typecheck passes"
       ],
       "priority": 16,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "ai@4, @ai-sdk/openai@1, @ai-sdk/anthropic@1 added as npm deps. POST /:id/messages added to chatsRouter in api/routes/chats.ts. Validates parentNodeId ownership (400 if wrong chat), checks API key (400 if missing). Creates user node, builds ancestor context path via buildAncestorPath() (walks up parent chain, returns root→node order). createOpenAI/createAnthropic/createOpenAI-with-openrouter-baseURL used for provider selection. streamText (AI SDK v4, no await) + streamSSE from hono/streaming for text/event-stream response. After stream: awaits result.usage for tokenCount, persists assistant node + node_metadata. Biome: uses `// biome-ignore lint/suspicious/noExplicitAny` on messages cast (ContextMessage[] compatible with CoreMessage[] but requires cast)."
     },
     {
       "id": "US-017",
