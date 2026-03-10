@@ -77,6 +77,12 @@ export default function ChatPanel() {
 
   const path = getAncestorPath(nodes, activeNodeId);
 
+  const childParentIds = new Set(
+    nodes.map((n) => n.parentId).filter((id): id is string => id !== null),
+  );
+  const activeNode = activeNodeId ? nodes.find((n) => n.id === activeNodeId) : undefined;
+  const isForkingFromNonLeaf = !!activeNode && childParentIds.has(activeNodeId ?? "");
+
   async function handleSend() {
     const chatId = activeChatId;
     const parentId = activeNodeId;
@@ -251,6 +257,11 @@ export default function ChatPanel() {
 
       {/* Input area */}
       <div class="border-t border-gray-200 p-3">
+        {isForkingFromNonLeaf && activeNode && (
+          <div class="mb-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
+            {`Branching from: ${activeNode.content.substring(0, 40)}${activeNode.content.length > 40 ? "…" : ""}`}
+          </div>
+        )}
         {tokenLimit > 0 && (
           <div class="mb-1 text-right text-xs text-gray-400">
             {tokenCount.toLocaleString()} / {tokenLimit.toLocaleString()} tokens

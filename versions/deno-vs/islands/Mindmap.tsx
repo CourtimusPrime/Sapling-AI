@@ -41,6 +41,7 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewport, setViewport] = useState<Viewport>(appStore.state.viewport);
   const [isPanning, setIsPanning] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const viewportRef = useRef<Viewport>(appStore.state.viewport);
@@ -196,6 +197,7 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
           ))}
           {descendants.map((node) => {
             const isActive = node.data.id === activeNodeId;
+            const isHovered = node.data.id === hoveredNodeId;
             const fill = ROLE_COLORS[node.data.role];
             const label = node.data.content.substring(0, 40);
             return (
@@ -210,9 +212,35 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
                 onKeyDown={(e: KeyboardEvent) => {
                   if (e.key === "Enter" || e.key === " ") handleNodeClick(node.data.id);
                 }}
+                onMouseEnter={() => setHoveredNodeId(node.data.id)}
+                onMouseLeave={() => setHoveredNodeId(null)}
               >
                 {isActive && <circle r={20} fill="none" stroke="#1d4ed8" stroke-width={3} />}
                 <circle r={isActive ? 16 : 12} fill={fill} />
+                {isHovered && (
+                  <g
+                    transform="translate(18, -18)"
+                    tabIndex={0}
+                    aria-label="Fork from this node"
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNodeClick(node.data.id);
+                    }}
+                    onKeyDown={(e: KeyboardEvent) => {
+                      if (e.key === "Enter" || e.key === " ") handleNodeClick(node.data.id);
+                    }}
+                  >
+                    <circle r={9} fill="#3b82f6" stroke="white" stroke-width={1.5} />
+                    <path
+                      d="M 0 -4 L 0 0 M 0 0 L -3 4 M 0 0 L 3 4"
+                      stroke="white"
+                      stroke-width={2}
+                      fill="none"
+                      style={{ pointerEvents: "none" }}
+                    />
+                  </g>
+                )}
               </g>
             );
           })}
