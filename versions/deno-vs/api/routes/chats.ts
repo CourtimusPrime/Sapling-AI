@@ -88,6 +88,58 @@ chatsRouter.patch("/:id", async (c) => {
   return c.json(updated);
 });
 
+// GET /api/chats/:id/nodes — return flat node list with optional metadata
+chatsRouter.get("/:id/nodes", async (c) => {
+  const { id: userId } = c.var.user;
+  const chatId = c.req.param("id");
+
+  const [existing] = await db
+    .select({ id: chat.id })
+    .from(chat)
+    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
+    .limit(1);
+
+  if (!existing) {
+    return c.json({ error: "Chat not found" }, 404);
+  }
+
+  const rows = await db
+    .select({
+      id: node.id,
+      parentId: node.parentId,
+      role: node.role,
+      content: node.content,
+      createdAt: node.createdAt,
+      metaNodeId: nodeMetadata.nodeId,
+      metaProvider: nodeMetadata.provider,
+      metaModel: nodeMetadata.model,
+      metaTemperature: nodeMetadata.temperature,
+      metaTokenCount: nodeMetadata.tokenCount,
+    })
+    .from(node)
+    .leftJoin(nodeMetadata, eq(nodeMetadata.nodeId, node.id))
+    .where(eq(node.chatId, chatId));
+
+  const nodes = rows.map((row) => ({
+    id: row.id,
+    parentId: row.parentId,
+    role: row.role,
+    content: row.content,
+    createdAt: row.createdAt,
+    metadata:
+      row.metaNodeId !== null
+        ? {
+            provider: row.metaProvider,
+            model: row.metaModel,
+            temperature: row.metaTemperature,
+            tokenCount: row.metaTokenCount,
+          }
+        : null,
+  }));
+
+  return c.json(nodes);
+});
+
 // DELETE /api/chats/:id — delete the chat and cascade (node_metadata, node, chat)
 chatsRouter.delete("/:id", async (c) => {
   const { id: userId } = c.var.user;
