@@ -1,3 +1,5 @@
+import Mindmap from "../islands/Mindmap.tsx";
+import type { MindmapNode } from "../islands/Mindmap.tsx";
 import SettingsPanel from "../islands/SettingsPanel.tsx";
 import { getAuthUser } from "../lib/auth.ts";
 import { define } from "../utils.ts";
@@ -11,8 +13,9 @@ export const handler = define.handlers({
         headers: { Location: "/auth" },
       });
     }
+    const nodes: MindmapNode[] = [];
     return ctx.render(
-      <div class="flex min-h-screen flex-col bg-gray-50">
+      <div class="flex h-screen flex-col bg-gray-50">
         <header class="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm">
           <h1 class="text-lg font-bold text-gray-900">Sapling</h1>
           <div class="flex items-center gap-3">
@@ -20,9 +23,18 @@ export const handler = define.handlers({
             <SettingsPanel />
           </div>
         </header>
-        <main class="flex flex-1 items-center justify-center">
-          <p class="text-gray-400">Select or create a chat to get started.</p>
-        </main>
+        <div class="flex flex-1 overflow-hidden">
+          {/* Chat panel — 60% */}
+          <section class="flex h-full w-3/5 flex-col border-r border-gray-200 bg-white">
+            <div class="flex h-full items-center justify-center">
+              <p class="text-sm text-gray-400">Select or create a chat to get started.</p>
+            </div>
+          </section>
+          {/* Mindmap panel — 40% */}
+          <section class="h-full w-2/5 bg-gray-50 p-4">
+            <Mindmap nodes={nodes} />
+          </section>
+        </div>
       </div>,
     );
   },

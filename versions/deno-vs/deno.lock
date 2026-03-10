@@ -35,7 +35,9 @@
     "npm:@preact/signals@^2.2.1": "2.7.1_preact@10.28.3",
     "npm:@preact/signals@^2.5.0": "2.7.1_preact@10.28.3",
     "npm:@prefresh/vite@^2.4.8": "2.4.11_preact@10.28.3_vite@7.3.1",
+    "npm:@tanstack/store@0": "0.9.2",
     "npm:@unocss/preset-wind@~0.65.3": "0.65.4",
+    "npm:d3-hierarchy@3": "3.1.2",
     "npm:drizzle-kit@0.30": "0.30.6",
     "npm:drizzle-orm@0.44": "0.44.7_@libsql+client@0.14.0_@opentelemetry+api@1.9.0",
     "npm:esbuild-wasm@~0.25.11": "0.25.12",
@@ -1363,6 +1365,12 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
+    "@tanstack/store@0.9.2": {
+      "integrity": "sha512-K013lUJEFJK2ofFQ/hZKJUmCnpcV00ebLyOyFOWQvyQHUOZp/iYO84BM6aOGiV81JzwbX0APTVmW8YI7yiG5oA=="
+    },
+    "@types/d3-hierarchy@3.1.7": {
+      "integrity": "sha512-tJFtNoYBtRtkNysX1Xq4sxtjK8YgoWUNpIiUee0/jHGRwqvzYxkq0hGVbbOGSz+JgFxxRu4K8nb3YpG3CMARtg=="
+    },
     "@types/estree@1.0.8": {
       "integrity": "sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w=="
     },
@@ -1717,6 +1725,9 @@
     },
     "csstype@3.2.3": {
       "integrity": "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="
+    },
+    "d3-hierarchy@3.1.2": {
+      "integrity": "sha512-FX/9frcub54beBdugHjDCdikxThEqjnR93Qt7PvQTOHxyiNCAlvMrHhclk3cD5VeAaq9fxmfRp+CnWw9rEMBuA=="
     },
     "data-uri-to-buffer@4.0.1": {
       "integrity": "sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A=="
@@ -2441,7 +2452,9 @@
       "npm:@biomejs/biome@^1.9.4",
       "npm:@libsql/client@0.14",
       "npm:@preact/signals@^2.5.0",
+      "npm:@tanstack/store@0",
       "npm:@unocss/preset-wind@~0.65.3",
+      "npm:d3-hierarchy@3",
       "npm:drizzle-kit@0.30",
       "npm:drizzle-orm@0.44",
       "npm:hono@4",

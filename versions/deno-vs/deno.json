@@ -33,7 +33,9 @@
     "@unocss/preset-wind": "npm:@unocss/preset-wind@^0.65.3",
     "@biomejs/biome": "npm:@biomejs/biome@^1.9.4",
     "zod": "npm:zod@^3",
-    "jose": "npm:jose@^5"
+    "jose": "npm:jose@^5",
+    "d3-hierarchy": "npm:d3-hierarchy@^3",
+    "@tanstack/store": "npm:@tanstack/store@^0"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.asynciterable", "dom.iterable", "deno.ns"],
