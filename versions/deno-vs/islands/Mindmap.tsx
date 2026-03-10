@@ -38,6 +38,7 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
   const [activeNodeId, setActiveNodeId] = useState<string | null>(appStore.state.activeNodeId);
   const [activeChatId, setActiveChatId] = useState<string | null>(appStore.state.activeChatId);
   const [fetchedNodes, setFetchedNodes] = useState<MindmapNode[] | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [viewport, setViewport] = useState<Viewport>(appStore.state.viewport);
   const [isPanning, setIsPanning] = useState(false);
 
@@ -53,14 +54,18 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
 
   // Subscribe to appStore
   useEffect(() => {
-    const unsub = appStore.subscribe(({ currentVal }) => {
+    const unsub = appStore.subscribe(({ currentVal, prevVal }) => {
       setActiveNodeId(currentVal.activeNodeId);
       setActiveChatId(currentVal.activeChatId);
+      if (currentVal.nodeRefreshTrigger !== prevVal.nodeRefreshTrigger) {
+        setRefreshKey((k) => k + 1);
+      }
     });
     return unsub;
   }, []);
 
-  // Fetch nodes when activeChatId changes
+  // Fetch nodes when activeChatId changes or refreshKey increments (nodeRefreshTrigger signal)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey is an intentional trigger dep
   useEffect(() => {
     if (!activeChatId) {
       setFetchedNodes(null);
@@ -79,7 +84,7 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
         setFetchedNodes([]);
       }
     })();
-  }, [activeChatId]);
+  }, [activeChatId, refreshKey]);
 
   // Center viewport when the active chat changes (activeChatId is intentionally in deps as trigger)
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId triggers the re-center
