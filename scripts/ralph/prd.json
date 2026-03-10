@@ -377,8 +377,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 22,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "stores/chat.ts: added chatDefaultModel: string | null to AppState (init null). api/routes/chats.ts: updateChatSchema now accepts optional title and optional defaultModel (nullable); PATCH /:id handler builds partial update object and guards against empty payload (400); sendMessageSchema provider/model now optional; POST /:id/messages resolves model via fallback chain: request override → chatRow.defaultModel → SAPLING_DEFAULT_MODEL env var → 400 error; chatRow select now includes defaultModel field. islands/ChatSidebar.tsx: Chat interface gets defaultModel field; handleChatClick now receives full Chat object and sets appStore.chatDefaultModel; createMutation.onSuccess also sets chatDefaultModel from newChat. islands/ChatPanel.tsx: chatDefaultModel state synced from appStore subscription; model input pre-filled from chatDefaultModel on mount and reset-on-activeChatId-change useEffect (biome-ignore); handleSaveDefaultModel() PATCHes /api/chats/:id with { defaultModel } and updates appStore+local state; handleSend sends provider/model only when model input has valid 'provider/model' format (spread conditional); model input reset to chatDefaultModel in both streaming and system-node finally blocks; chat settings toggle (⚙ Default) shows inline panel with default model input + Save button; model override input placeholder updated to reflect per-message override semantics."
     }
   ]
 }
