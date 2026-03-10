@@ -37,7 +37,8 @@
     "@types/d3-hierarchy": "npm:@types/d3-hierarchy@^3.1.7",
     "d3-hierarchy": "npm:d3-hierarchy@^3",
     "@tanstack/preact-query": "npm:@tanstack/preact-query@^5",
-    "@tanstack/store": "npm:@tanstack/store@^0"
+    "@tanstack/store": "npm:@tanstack/store@^0",
+    "@tanstack/pacer": "npm:@tanstack/pacer@^0"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.asynciterable", "dom.iterable", "deno.ns"],

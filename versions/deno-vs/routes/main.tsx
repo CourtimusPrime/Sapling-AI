@@ -1,3 +1,4 @@
+import ChatPanel from "../islands/ChatPanel.tsx";
 import ChatSidebar from "../islands/ChatSidebar.tsx";
 import Mindmap from "../islands/Mindmap.tsx";
 import type { MindmapNode } from "../islands/Mindmap.tsx";
@@ -29,9 +30,7 @@ export const handler = define.handlers({
           <ChatSidebar />
           {/* Chat panel */}
           <section class="flex h-full flex-1 flex-col border-r border-gray-200 bg-white">
-            <div class="flex h-full items-center justify-center">
-              <p class="text-sm text-gray-400">Select or create a chat to get started.</p>
-            </div>
+            <ChatPanel />
           </section>
           {/* Mindmap panel */}
           <section class="h-full w-2/5 bg-gray-50 p-4">

@@ -40,10 +40,10 @@ function SidebarInner() {
 
   // Sync activeChatId with appStore
   useEffect(() => {
-    const sub = appStore.subscribe((value) => {
-      setActiveChatId(value.activeChatId);
+    const unsub = appStore.subscribe(({ currentVal }) => {
+      setActiveChatId(currentVal.activeChatId);
     });
-    return () => sub.unsubscribe();
+    return unsub;
   }, []);
 
   const {
