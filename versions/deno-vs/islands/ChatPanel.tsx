@@ -26,6 +26,7 @@ export default function ChatPanel() {
   const [streamContent, setStreamContent] = useState("");
   const [tokenCount, setTokenCount] = useState(0);
   const [tokenLimit, setTokenLimit] = useState(0);
+  const [isSystemMode, setIsSystemMode] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Throttled setter for streaming content — batches updates to max ~60fps
@@ -83,6 +84,40 @@ export default function ChatPanel() {
   const activeNode = activeNodeId ? nodes.find((n) => n.id === activeNodeId) : undefined;
   const isForkingFromNonLeaf = !!activeNode && childParentIds.has(activeNodeId ?? "");
 
+  async function refetchAndUpdate(chatId: string, role: "user" | "system") {
+    try {
+      const res = await fetch(`/api/chats/${chatId}/nodes`);
+      if (res.ok) {
+        const data = (await res.json()) as MindmapNode[];
+        setNodes(data);
+        // For user messages, auto-navigate to the newest assistant node
+        const newest =
+          role === "user"
+            ? data
+                .filter((n) => n.role === "assistant")
+                .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]
+            : data
+                .filter((n) => n.role === "system")
+                .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
+        appStore.setState((prev) => ({
+          ...prev,
+          activeNodeId: newest?.id ?? prev.activeNodeId,
+          nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
+        }));
+      } else {
+        appStore.setState((prev) => ({
+          ...prev,
+          nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
+        }));
+      }
+    } catch {
+      appStore.setState((prev) => ({
+        ...prev,
+        nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
+      }));
+    }
+  }
+
   async function handleSend() {
     const chatId = activeChatId;
     const parentId = activeNodeId;
@@ -93,8 +128,41 @@ export default function ChatPanel() {
     const provider = model.slice(0, slashIdx);
     const modelName = model.slice(slashIdx + 1);
     const content = input.trim();
+    const role = isSystemMode ? "system" : "user";
 
     setInput("");
+    setIsSystemMode(false);
+
+    // System messages: non-streaming insert
+    if (role === "system") {
+      setPendingUser(content);
+      try {
+        const res = await fetch(`/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            parentNodeId: parentId ?? undefined,
+            content,
+            provider,
+            model: modelName,
+            role: "system",
+          }),
+        });
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({ error: "Request failed" }))) as {
+            error: string;
+          };
+          console.error("Send failed:", err.error);
+        }
+      } catch (err) {
+        console.error("System node error:", err);
+      } finally {
+        setPendingUser(null);
+        await refetchAndUpdate(chatId, "system");
+      }
+      return;
+    }
+
     setPendingUser(content);
     setIsStreaming(true);
     setStreamContent("");
@@ -161,34 +229,7 @@ export default function ChatPanel() {
       setIsStreaming(false);
       setPendingUser(null);
       setStreamContent("");
-
-      // Refetch nodes and auto-navigate to the new assistant node
-      try {
-        const res = await fetch(`/api/chats/${chatId}/nodes`);
-        if (res.ok) {
-          const data = (await res.json()) as MindmapNode[];
-          setNodes(data);
-          // Find the most recently created assistant node to auto-select
-          const newest = data
-            .filter((n) => n.role === "assistant")
-            .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
-          appStore.setState((prev) => ({
-            ...prev,
-            activeNodeId: newest?.id ?? prev.activeNodeId,
-            nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
-          }));
-        } else {
-          appStore.setState((prev) => ({
-            ...prev,
-            nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
-          }));
-        }
-      } catch {
-        appStore.setState((prev) => ({
-          ...prev,
-          nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
-        }));
-      }
+      await refetchAndUpdate(chatId, "user");
     }
   }
 
@@ -229,10 +270,15 @@ export default function ChatPanel() {
           </div>
         ))}
 
-        {/* Optimistic user message while streaming */}
+        {/* Optimistic pending message while sending */}
         {pendingUser && (
-          <div class="mb-3 flex justify-end">
-            <div class="max-w-[80%] rounded-lg bg-blue-500 px-3 py-2 text-sm text-white">
+          <div class={`mb-3 flex ${isSystemMode ? "justify-start" : "justify-end"}`}>
+            <div
+              class={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                isSystemMode ? "bg-gray-100 text-xs italic text-gray-600" : "bg-blue-500 text-white"
+              }`}
+            >
+              {isSystemMode && <div class="mb-1 text-xs font-semibold opacity-60">System</div>}
               <p class="whitespace-pre-wrap break-words">{pendingUser}</p>
             </div>
           </div>
@@ -276,6 +322,23 @@ export default function ChatPanel() {
             class="w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-500 focus:border-blue-300 focus:outline-none"
           />
         </div>
+        <div class="mb-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsSystemMode((v) => !v)}
+            disabled={isStreaming}
+            class={`rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-40 ${
+              isSystemMode
+                ? "bg-gray-600 text-white hover:bg-gray-700"
+                : "border border-gray-300 text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            {isSystemMode ? "⚙ System (on)" : "⚙ System"}
+          </button>
+          {isSystemMode && (
+            <span class="text-xs text-gray-400">Next message will be a system node</span>
+          )}
+        </div>
         <div class="flex gap-2">
           <textarea
             value={input}
@@ -286,16 +349,26 @@ export default function ChatPanel() {
                 handleSend();
               }
             }}
-            placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
+            placeholder={
+              isSystemMode
+                ? "Type a system instruction…"
+                : "Type a message… (Enter to send, Shift+Enter for newline)"
+            }
             disabled={isStreaming}
             rows={2}
-            class="flex-1 resize-none rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none disabled:opacity-50"
+            class={`flex-1 resize-none rounded border px-3 py-2 text-sm focus:outline-none disabled:opacity-50 ${
+              isSystemMode
+                ? "border-gray-400 bg-gray-50 focus:border-gray-500"
+                : "border-gray-200 focus:border-blue-400"
+            }`}
           />
           <button
             type="button"
             onClick={handleSend}
             disabled={isStreaming || !input.trim()}
-            class="rounded bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+            class={`rounded px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 ${
+              isSystemMode ? "bg-gray-600 hover:bg-gray-700" : "bg-blue-500 hover:bg-blue-600"
+            }`}
           >
             {isStreaming ? "…" : "Send"}
           </button>

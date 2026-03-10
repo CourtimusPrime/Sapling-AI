@@ -26,6 +26,7 @@ const sendMessageSchema = z.object({
   content: z.string().min(1),
   provider: z.string().min(1),
   model: z.string().min(1),
+  role: z.enum(["user", "system"]).optional().default("user"),
 });
 
 type ContextMessage = { role: "user" | "assistant" | "system"; content: string };
@@ -244,7 +245,7 @@ chatsRouter.post("/:id/messages", async (c) => {
 
   const { id: userId } = c.var.user;
   const chatId = c.req.param("id");
-  const { parentNodeId, content, provider, model } = parsed.data;
+  const { parentNodeId, content, provider, model, role } = parsed.data;
 
   // Verify the chat belongs to the user
   const [chatRow] = await db
@@ -268,6 +269,19 @@ chatsRouter.post("/:id/messages", async (c) => {
     if (!parentNode) {
       return c.json({ error: "Parent node does not belong to this chat" }, 400);
     }
+  }
+
+  // System nodes: just insert the node and return — no LLM call needed
+  if (role === "system") {
+    const systemNodeId = crypto.randomUUID();
+    await db.insert(node).values({
+      id: systemNodeId,
+      chatId,
+      parentId: parentNodeId ?? null,
+      role: "system",
+      content,
+    });
+    return c.json({ ok: true, nodeId: systemNodeId });
   }
 
   // Verify API key is set for the requested provider

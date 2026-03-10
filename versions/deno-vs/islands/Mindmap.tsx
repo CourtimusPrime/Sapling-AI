@@ -217,6 +217,17 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
               >
                 {isActive && <circle r={20} fill="none" stroke="#1d4ed8" stroke-width={3} />}
                 <circle r={isActive ? 16 : 12} fill={fill} />
+                {node.data.role === "system" && (
+                  <text
+                    text-anchor="middle"
+                    dominant-baseline="central"
+                    font-size={isActive ? "12" : "9"}
+                    fill="white"
+                    style={{ pointerEvents: "none" }}
+                  >
+                    ⚙
+                  </text>
+                )}
                 {isHovered && (
                   <g
                     transform="translate(18, -18)"
