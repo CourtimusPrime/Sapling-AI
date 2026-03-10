@@ -1,19 +1,19 @@
 import { db } from "@/db/client.ts";
 import { userApiKey } from "@/db/schema.ts";
-import type { AuthEnv } from "@/lib/auth.ts";
 import { encrypt } from "@/lib/crypto.ts";
+import { SYSTEM_USER_ID } from "@/lib/system-user.ts";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
-export const settingsRouter = new Hono<AuthEnv>();
+export const settingsRouter = new Hono();
 
 const apiKeySchema = z.object({
   key: z.string().min(1),
   provider: z.string().min(1),
 });
 
-// PUT /api/settings/api-key — upsert an encrypted API key for the current user
+// PUT /api/settings/api-key
 settingsRouter.put("/api-key", async (c) => {
   let body: unknown;
   try {
@@ -28,12 +28,11 @@ settingsRouter.put("/api-key", async (c) => {
   }
 
   const { key, provider } = parsed.data;
-  const { id: userId } = c.var.user;
   const encryptedKey = await encrypt(key);
 
   await db
     .insert(userApiKey)
-    .values({ encryptedKey, provider, userId })
+    .values({ encryptedKey, provider, userId: SYSTEM_USER_ID })
     .onConflictDoUpdate({
       set: { encryptedKey },
       target: [userApiKey.userId, userApiKey.provider],
@@ -42,26 +41,23 @@ settingsRouter.put("/api-key", async (c) => {
   return c.json({ ok: true });
 });
 
-// GET /api/settings/api-key — list all providers with isSet indicator (no raw keys)
+// GET /api/settings/api-key
 settingsRouter.get("/api-key", async (c) => {
-  const { id: userId } = c.var.user;
-
   const rows = await db
     .select({ provider: userApiKey.provider })
     .from(userApiKey)
-    .where(eq(userApiKey.userId, userId));
+    .where(eq(userApiKey.userId, SYSTEM_USER_ID));
 
   return c.json(rows.map((r) => ({ isSet: true, provider: r.provider })));
 });
 
-// DELETE /api/settings/api-key/:provider — remove the stored key for a provider
+// DELETE /api/settings/api-key/:provider
 settingsRouter.delete("/api-key/:provider", async (c) => {
-  const { id: userId } = c.var.user;
   const provider = c.req.param("provider");
 
   await db
     .delete(userApiKey)
-    .where(and(eq(userApiKey.userId, userId), eq(userApiKey.provider, provider)));
+    .where(and(eq(userApiKey.userId, SYSTEM_USER_ID), eq(userApiKey.provider, provider)));
 
   return c.json({ ok: true });
 });

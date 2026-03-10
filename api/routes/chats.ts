@@ -1,7 +1,7 @@
 import { db } from "@/db/client.ts";
 import { chat, node, nodeMetadata } from "@/db/schema.ts";
-import type { AuthEnv } from "@/lib/auth.ts";
 import { getDecryptedKey } from "@/lib/keys.ts";
+import { SYSTEM_USER_ID } from "@/lib/system-user.ts";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
@@ -11,7 +11,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 
-export const chatsRouter = new Hono<AuthEnv>();
+export const chatsRouter = new Hono();
 
 const createChatSchema = z.object({
   title: z.string().optional(),
@@ -55,25 +55,19 @@ function getContextWindow(modelName: string): number {
   return MODEL_CONTEXT_WINDOWS[modelName] ?? 128000;
 }
 
-// Trim messages so total tokens <= tokenLimit.
-// Always preserves: system messages, and the last 2 exchanges (last 4 non-system messages).
 function trimMessages(messages: ContextMessage[], tokenLimit: number): ContextMessage[] {
   if (estimateTokens(messages) <= tokenLimit) return messages;
 
-  // Identify indices that must be preserved
   const preserved = new Set<number>();
-
   for (let i = 0; i < messages.length; i++) {
     if (messages[i].role === "system") preserved.add(i);
   }
 
-  // Last 4 non-system indices = last 2 exchanges
   const nonSystem = messages.map((_, i) => i).filter((i) => !preserved.has(i));
   for (const i of nonSystem.slice(Math.max(0, nonSystem.length - 4))) {
     preserved.add(i);
   }
 
-  // Drop oldest droppable messages until under limit
   const droppable = messages.map((_, i) => i).filter((i) => !preserved.has(i));
   const dropped = new Set<number>();
 
@@ -85,7 +79,6 @@ function trimMessages(messages: ContextMessage[], tokenLimit: number): ContextMe
   return messages.filter((_, i) => !dropped.has(i));
 }
 
-// Walk from nodeId up to root, returning messages in root→node order
 async function buildAncestorPath(nodeId: string): Promise<ContextMessage[]> {
   const path: ContextMessage[] = [];
   let currentId: string | null = nodeId;
@@ -105,7 +98,7 @@ async function buildAncestorPath(nodeId: string): Promise<ContextMessage[]> {
   return path;
 }
 
-// POST /api/chats — create a new chat
+// POST /api/chats
 chatsRouter.post("/", async (c) => {
   let body: unknown;
   try {
@@ -119,12 +112,10 @@ chatsRouter.post("/", async (c) => {
     return c.json({ error: parsed.error.issues[0].message }, 400);
   }
 
-  const { id: userId } = c.var.user;
   const id = crypto.randomUUID();
-
   await db.insert(chat).values({
     id,
-    userId,
+    userId: SYSTEM_USER_ID,
     title: parsed.data.title ?? null,
   });
 
@@ -132,20 +123,18 @@ chatsRouter.post("/", async (c) => {
   return c.json(created, 201);
 });
 
-// GET /api/chats — list all chats for the current user ordered by created_at desc
+// GET /api/chats
 chatsRouter.get("/", async (c) => {
-  const { id: userId } = c.var.user;
-
   const chats = await db
     .select()
     .from(chat)
-    .where(eq(chat.userId, userId))
+    .where(eq(chat.userId, SYSTEM_USER_ID))
     .orderBy(desc(chat.createdAt));
 
   return c.json(chats);
 });
 
-// PATCH /api/chats/:id — update the chat title and/or default model
+// PATCH /api/chats/:id
 chatsRouter.patch("/:id", async (c) => {
   let body: unknown;
   try {
@@ -163,18 +152,14 @@ chatsRouter.patch("/:id", async (c) => {
     return c.json({ error: "At least one of title or defaultModel must be provided" }, 400);
   }
 
-  const { id: userId } = c.var.user;
   const chatId = c.req.param("id");
-
   const [existing] = await db
     .select()
     .from(chat)
-    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
+    .where(and(eq(chat.id, chatId), eq(chat.userId, SYSTEM_USER_ID)))
     .limit(1);
 
-  if (!existing) {
-    return c.json({ error: "Chat not found" }, 404);
-  }
+  if (!existing) return c.json({ error: "Chat not found" }, 404);
 
   const updates: { title?: string; defaultModel?: string | null } = {};
   if (parsed.data.title !== undefined) updates.title = parsed.data.title;
@@ -186,20 +171,17 @@ chatsRouter.patch("/:id", async (c) => {
   return c.json(updated);
 });
 
-// GET /api/chats/:id/nodes — return flat node list with optional metadata
+// GET /api/chats/:id/nodes
 chatsRouter.get("/:id/nodes", async (c) => {
-  const { id: userId } = c.var.user;
   const chatId = c.req.param("id");
 
   const [existing] = await db
     .select({ id: chat.id })
     .from(chat)
-    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
+    .where(and(eq(chat.id, chatId), eq(chat.userId, SYSTEM_USER_ID)))
     .limit(1);
 
-  if (!existing) {
-    return c.json({ error: "Chat not found" }, 404);
-  }
+  if (!existing) return c.json({ error: "Chat not found" }, 404);
 
   const rows = await db
     .select({
@@ -238,7 +220,7 @@ chatsRouter.get("/:id/nodes", async (c) => {
   return c.json(nodes);
 });
 
-// POST /api/chats/:id/messages — send a message and stream the assistant reply
+// POST /api/chats/:id/messages
 chatsRouter.post("/:id/messages", async (c) => {
   let body: unknown;
   try {
@@ -252,22 +234,17 @@ chatsRouter.post("/:id/messages", async (c) => {
     return c.json({ error: parsed.error.issues[0].message }, 400);
   }
 
-  const { id: userId } = c.var.user;
   const chatId = c.req.param("id");
   const { parentNodeId, content, provider: reqProvider, model: reqModel, role } = parsed.data;
 
-  // Verify the chat belongs to the user
   const [chatRow] = await db
     .select({ id: chat.id, defaultModel: chat.defaultModel })
     .from(chat)
-    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
+    .where(and(eq(chat.id, chatId), eq(chat.userId, SYSTEM_USER_ID)))
     .limit(1);
 
-  if (!chatRow) {
-    return c.json({ error: "Chat not found" }, 404);
-  }
+  if (!chatRow) return c.json({ error: "Chat not found" }, 404);
 
-  // If parentNodeId provided, verify it belongs to this chat
   if (parentNodeId) {
     const [parentNode] = await db
       .select({ id: node.id })
@@ -280,7 +257,6 @@ chatsRouter.post("/:id/messages", async (c) => {
     }
   }
 
-  // System nodes: just insert the node and return — no LLM call needed
   if (role === "system") {
     const systemNodeId = crypto.randomUUID();
     await db.insert(node).values({
@@ -293,7 +269,6 @@ chatsRouter.post("/:id/messages", async (c) => {
     return c.json({ ok: true, nodeId: systemNodeId });
   }
 
-  // Resolve provider and model: request override → chat.defaultModel → SAPLING_DEFAULT_MODEL
   let provider: string;
   let model: string;
 
@@ -305,10 +280,7 @@ chatsRouter.post("/:id/messages", async (c) => {
     const slashIdx = fallbackModel.indexOf("/");
     if (slashIdx === -1) {
       return c.json(
-        {
-          error:
-            "No model configured. Set a default model for this chat or SAPLING_DEFAULT_MODEL env var.",
-        },
+        { error: "No model configured. Set a default model for this chat or SAPLING_DEFAULT_MODEL env var." },
         400,
       );
     }
@@ -316,13 +288,11 @@ chatsRouter.post("/:id/messages", async (c) => {
     model = fallbackModel.slice(slashIdx + 1);
   }
 
-  // Verify API key is set for the requested provider
-  const apiKey = await getDecryptedKey(userId, provider);
+  const apiKey = await getDecryptedKey(SYSTEM_USER_ID, provider);
   if (!apiKey) {
     return c.json({ error: `No API key set for provider: ${provider}` }, 400);
   }
 
-  // Create the user node before starting the LLM call
   const userNodeId = crypto.randomUUID();
   await db.insert(node).values({
     id: userNodeId,
@@ -332,16 +302,13 @@ chatsRouter.post("/:id/messages", async (c) => {
     content,
   });
 
-  // Build context messages: ancestor chain (root → parentNode) + current user message
   const ancestorPath = parentNodeId ? await buildAncestorPath(parentNodeId) : [];
   const fullMessages: ContextMessage[] = [...ancestorPath, { role: "user", content }];
 
-  // Token counting and context trimming
   const tokenLimit = Math.round(getContextWindow(model) * 0.45);
   const messages = trimMessages(fullMessages, tokenLimit);
   const tokenCount = estimateTokens(messages);
 
-  // Create provider-specific model instance
   let llmModel: LanguageModel;
   if (provider === "anthropic") {
     const anthropic = createAnthropic({ apiKey });
@@ -350,7 +317,6 @@ chatsRouter.post("/:id/messages", async (c) => {
     const openrouter = createOpenAI({ apiKey, baseURL: "https://openrouter.ai/api/v1" });
     llmModel = openrouter(model);
   } else {
-    // Default: openai-compatible
     const openai = createOpenAI({ apiKey });
     llmModel = openai(model);
   }
@@ -364,7 +330,6 @@ chatsRouter.post("/:id/messages", async (c) => {
     temperature: 0.7,
   });
 
-  // Token usage headers — set before streamSSE so they appear in the response
   c.header("X-Token-Count", String(tokenCount));
   c.header("X-Token-Limit", String(tokenLimit));
 
@@ -381,9 +346,8 @@ chatsRouter.post("/:id/messages", async (c) => {
       return;
     }
 
-    // Stream complete — persist assistant node and metadata
     const usage = await result.usage.catch(() => null);
-    const tokenCount = usage?.totalTokens ?? Math.round(fullText.length / 4);
+    const finalTokenCount = usage?.totalTokens ?? Math.round(fullText.length / 4);
 
     await db.insert(node).values({
       id: assistantNodeId,
@@ -398,27 +362,23 @@ chatsRouter.post("/:id/messages", async (c) => {
       provider,
       model,
       temperature: 0.7,
-      tokenCount,
+      tokenCount: finalTokenCount,
     });
   });
 });
 
-// DELETE /api/chats/:id — delete the chat and cascade (node_metadata, node, chat)
+// DELETE /api/chats/:id
 chatsRouter.delete("/:id", async (c) => {
-  const { id: userId } = c.var.user;
   const chatId = c.req.param("id");
 
   const [existing] = await db
     .select({ id: chat.id })
     .from(chat)
-    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
+    .where(and(eq(chat.id, chatId), eq(chat.userId, SYSTEM_USER_ID)))
     .limit(1);
 
-  if (!existing) {
-    return c.json({ error: "Chat not found" }, 404);
-  }
+  if (!existing) return c.json({ error: "Chat not found" }, 404);
 
-  // Cascade delete: node_metadata → node → chat
   const nodes = await db.select({ id: node.id }).from(node).where(eq(node.chatId, chatId));
 
   if (nodes.length > 0) {
