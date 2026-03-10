@@ -1,7 +1,13 @@
-import { defineConfig } from "vite";
 import { fresh } from "@fresh/plugin-vite";
-import tailwindcss from "@tailwindcss/vite";
+import { presetWind } from "unocss";
+import UnoCSS from "unocss/vite";
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [fresh(), tailwindcss()],
+  plugins: [
+    UnoCSS({
+      presets: [presetWind()],
+    }),
+    fresh(),
+  ],
 });

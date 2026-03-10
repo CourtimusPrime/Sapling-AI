@@ -5,6 +5,9 @@
 .env.production.local
 .env.local
 
+# Local SQLite database files
+*.db
+
 # Fresh build directory
 _fresh/
 # npm + other dependencies
