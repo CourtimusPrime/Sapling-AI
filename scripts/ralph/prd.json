@@ -167,8 +167,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "islands/SettingsPanel.tsx implements a modal with three provider rows (OpenAI, Anthropic, OpenRouter). Each row shows isSet indicator (green ● Set / gray ○ Not set), an 'Add key'/'Replace' button that shows a password input inline, and a 'Remove' button with two-step confirmation. Save calls PUT /api/settings/api-key; remove calls DELETE /api/settings/api-key/:provider. Statuses loaded via GET /api/settings/api-key on modal open. The raw key is never redisplayed. routes/main.tsx updated to include SettingsPanel island in the header."
     },
     {
       "id": "US-011",

@@ -36,6 +36,16 @@
 
 ---
 
+## 2026-03-10 - US-010
+- What was implemented: `islands/SettingsPanel.tsx` — a Preact island with a "⚙ Settings" trigger button and a modal dialog. The modal loads provider statuses from `GET /api/settings/api-key` on open, displays three provider rows (OpenAI, Anthropic, OpenRouter) each with a green "● Set" / gray "○ Not set" indicator. "Add key"/"Replace" shows an inline password input + Save button; Save calls `PUT /api/settings/api-key` and updates indicator optimistically. "Remove" shows a two-step confirmation before calling `DELETE /api/settings/api-key/:provider`. Raw key is never displayed after saving. `routes/main.tsx` updated with a header containing the user email and `<SettingsPanel />` island.
+- Files changed: `versions/deno-vs/islands/SettingsPanel.tsx` (new), `versions/deno-vs/routes/main.tsx` (header + SettingsPanel import)
+- **Learnings for future iterations:**
+  - Biome `useExhaustiveDependencies`: avoid declaring named `async function` inside a component and calling it from `useEffect` — instead inline an async IIFE: `useEffect(() => { (async () => { ... })(); }, [dep])`
+  - Biome `useKeyWithClickEvents`: overlay divs with `onClick` also need `onKeyDown` (or use `role="presentation"` as a pragmatic workaround)
+  - Biome auto-detects unused imports and enforces alphabetical import ordering — always run `biome check --write .` after creating new files
+  - Playwright `.click()` may not trigger Preact event handlers on hydrated islands if called before hydration completes; use `page.evaluate(() => el.click())` or wait longer for hydration
+---
+
 ## 2026-03-10 - US-009
 - What was implemented: AES-GCM encryption helpers in lib/crypto.ts (encrypt/decrypt using HKDF-derived key from ENCRYPTION_KEY env var, iv prepended to ciphertext, stored as base64url); getDecryptedKey(userId, provider) in lib/keys.ts; PUT /api/settings/api-key (Zod validation, encrypt key, upsert via onConflictDoUpdate), GET /api/settings/api-key (list providers with isSet:true, no raw keys), DELETE /api/settings/api-key/:provider — all mounted under protectedRoutes in api/app.ts so requireAuth applies automatically
 - Files changed: versions/deno-vs/lib/crypto.ts (new), versions/deno-vs/lib/keys.ts (new), versions/deno-vs/api/routes/settings.ts (new), versions/deno-vs/api/app.ts (import + route mount)
