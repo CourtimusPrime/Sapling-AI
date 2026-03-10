@@ -24,6 +24,8 @@ export default function ChatPanel() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingUser, setPendingUser] = useState<string | null>(null);
   const [streamContent, setStreamContent] = useState("");
+  const [tokenCount, setTokenCount] = useState(0);
+  const [tokenLimit, setTokenLimit] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Throttled setter for streaming content — batches updates to max ~60fps
@@ -112,6 +114,12 @@ export default function ChatPanel() {
         console.error("Send failed:", err.error);
         return;
       }
+
+      // Read token usage headers
+      const xCount = res.headers.get("X-Token-Count");
+      const xLimit = res.headers.get("X-Token-Limit");
+      if (xCount) setTokenCount(Number(xCount));
+      if (xLimit) setTokenLimit(Number(xLimit));
 
       if (!res.body) {
         console.error("No response body");
@@ -243,6 +251,11 @@ export default function ChatPanel() {
 
       {/* Input area */}
       <div class="border-t border-gray-200 p-3">
+        {tokenLimit > 0 && (
+          <div class="mb-1 text-right text-xs text-gray-400">
+            {tokenCount.toLocaleString()} / {tokenLimit.toLocaleString()} tokens
+          </div>
+        )}
         <div class="mb-2">
           <input
             type="text"

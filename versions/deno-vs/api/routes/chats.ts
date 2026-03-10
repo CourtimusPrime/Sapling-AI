@@ -30,6 +30,59 @@ const sendMessageSchema = z.object({
 
 type ContextMessage = { role: "user" | "assistant" | "system"; content: string };
 
+// 1 token ≈ 4 characters approximation
+function estimateTokens(messages: ContextMessage[]): number {
+  return Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4);
+}
+
+// Known context windows (tokens). Default 128k for unknown models.
+const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
+  "gpt-4o": 128000,
+  "gpt-4o-mini": 128000,
+  "gpt-4-turbo": 128000,
+  "claude-sonnet-4-5": 200000,
+  "claude-sonnet-4-6": 200000,
+  "claude-opus-4-5": 200000,
+  "claude-opus-4-6": 200000,
+  "claude-haiku-4-5": 200000,
+  "gemini-1.5-pro": 1000000,
+  "gemini-1.5-flash": 1000000,
+};
+
+function getContextWindow(modelName: string): number {
+  return MODEL_CONTEXT_WINDOWS[modelName] ?? 128000;
+}
+
+// Trim messages so total tokens <= tokenLimit.
+// Always preserves: system messages, and the last 2 exchanges (last 4 non-system messages).
+function trimMessages(messages: ContextMessage[], tokenLimit: number): ContextMessage[] {
+  if (estimateTokens(messages) <= tokenLimit) return messages;
+
+  // Identify indices that must be preserved
+  const preserved = new Set<number>();
+
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role === "system") preserved.add(i);
+  }
+
+  // Last 4 non-system indices = last 2 exchanges
+  const nonSystem = messages.map((_, i) => i).filter((i) => !preserved.has(i));
+  for (const i of nonSystem.slice(Math.max(0, nonSystem.length - 4))) {
+    preserved.add(i);
+  }
+
+  // Drop oldest droppable messages until under limit
+  const droppable = messages.map((_, i) => i).filter((i) => !preserved.has(i));
+  const dropped = new Set<number>();
+
+  for (const idx of droppable) {
+    dropped.add(idx);
+    if (estimateTokens(messages.filter((_, i) => !dropped.has(i))) <= tokenLimit) break;
+  }
+
+  return messages.filter((_, i) => !dropped.has(i));
+}
+
 // Walk from nodeId up to root, returning messages in root→node order
 async function buildAncestorPath(nodeId: string): Promise<ContextMessage[]> {
   const path: ContextMessage[] = [];
@@ -235,7 +288,12 @@ chatsRouter.post("/:id/messages", async (c) => {
 
   // Build context messages: ancestor chain (root → parentNode) + current user message
   const ancestorPath = parentNodeId ? await buildAncestorPath(parentNodeId) : [];
-  const messages: ContextMessage[] = [...ancestorPath, { role: "user", content }];
+  const fullMessages: ContextMessage[] = [...ancestorPath, { role: "user", content }];
+
+  // Token counting and context trimming
+  const tokenLimit = Math.round(getContextWindow(model) * 0.45);
+  const messages = trimMessages(fullMessages, tokenLimit);
+  const tokenCount = estimateTokens(messages);
 
   // Create provider-specific model instance
   let llmModel: LanguageModel;
@@ -259,6 +317,10 @@ chatsRouter.post("/:id/messages", async (c) => {
     messages: messages as any,
     temperature: 0.7,
   });
+
+  // Token usage headers — set before streamSSE so they appear in the response
+  c.header("X-Token-Count", String(tokenCount));
+  c.header("X-Token-Limit", String(tokenLimit));
 
   return streamSSE(c, async (s) => {
     let fullText = "";
