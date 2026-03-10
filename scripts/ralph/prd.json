@@ -253,8 +253,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 15,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "@tanstack/pacer@0.19.0 added for throttled viewport store updates (throttle(fn, { wait: 16 })). @tanstack/store downgraded from 0.9.2 to 0.8.1 by dependency resolution — subscribe API changed: listener now receives { prevVal, currentVal } instead of TState directly. Viewport state (x, y, scale) added to appStore in stores/chat.ts. Mindmap.tsx rewritten to use <g transform='translate+scale'> group instead of viewBox; native addEventListener for wheel (passive:false) and pointer events with refs (viewportRef, isPanningRef, panStartRef) to avoid stale closures; node click sets appStore.activeNodeId. New ChatPanel island shows ancestor path (root→activeNode) as linear conversation. routes/main.tsx replaced placeholder with ChatPanel island."
     },
     {
       "id": "US-016",
