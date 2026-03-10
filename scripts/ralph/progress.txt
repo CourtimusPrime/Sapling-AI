@@ -1,3 +1,12 @@
+## 2026-03-10 - US-018
+- What was implemented: `estimateTokens(messages)` helper (sum content lengths / 4). `MODEL_CONTEXT_WINDOWS` map for known models (gpt-4o, claude-sonnet/opus/haiku, gemini-1.5); default 128k for unknown. `getContextWindow(model)` looks up or defaults. `trimMessages(messages, tokenLimit)` preserves all system messages + last 4 non-system messages (= last 2 user+assistant exchanges); drops oldest droppable messages one by one until tokens <= limit. In `POST /:id/messages`: `tokenLimit = Math.round(getContextWindow(model) * 0.45)`, trim applied to `fullMessages`, `tokenCount = estimateTokens(trimmedMessages)`. `c.header("X-Token-Count", ...)` and `c.header("X-Token-Limit", ...)` set before `streamSSE` call. `ChatPanel.tsx`: added `tokenCount`/`tokenLimit` state; after `res.ok` check reads `X-Token-Count`/`X-Token-Limit` headers; shows `"{N} / {M} tokens"` indicator above model input when `tokenLimit > 0`.
+- Files changed: `versions/deno-vs/api/routes/chats.ts` (+estimateTokens, +MODEL_CONTEXT_WINDOWS, +getContextWindow, +trimMessages helpers; token trimming + headers in POST /:id/messages), `versions/deno-vs/islands/ChatPanel.tsx` (+tokenCount/tokenLimit state, +header reading, +token indicator UI)
+- **Learnings for future iterations:**
+  - Hono `c.header(name, value)` called before `streamSSE(c, ...)` correctly sets custom headers on the SSE response — headers appear on the client's `res.headers`
+  - SSE client: `res.headers.get("X-Header")` is available immediately after `await fetch(...)` returns (before reading the body stream)
+  - Context trimming: always preserve `role === "system"` messages + last N messages by index; drop oldest droppable messages iteratively
+---
+
 ## 2026-03-10 - US-016
 - What was implemented: `POST /api/chats/:id/messages` added to `chatsRouter` in `api/routes/chats.ts`. Validates body via Zod (`parentNodeId?`, `content`, `provider`, `model`). Verifies chat ownership (404 if not found). Verifies parentNodeId belongs to the chat (400 if not). Checks API key via `getDecryptedKey` (400 if missing). Creates user node in DB. Builds ancestor context path via `buildAncestorPath()` (walks up parent chain) — returns messages in root→active order. Selects provider model: `createAnthropic` for `anthropic`, `createOpenAI` with `baseURL: 'https://openrouter.ai/api/v1'` for `openrouter`, `createOpenAI` for everything else (default). `streamText` (AI SDK v4, synchronous — no await) starts LLM stream. `streamSSE` from `hono/streaming` sends chunks as `data: <chunk>\n\n` SSE events. After stream loop completes, awaits `result.usage` for token count (falls back to `length/4` approx if unavailable). Persists assistant node + node_metadata row.
 - Files changed: `versions/deno-vs/deno.json` (+ai@4, +@ai-sdk/openai@1, +@ai-sdk/anthropic@1), `versions/deno-vs/deno.lock`, `versions/deno-vs/api/routes/chats.ts` (+imports, +buildAncestorPath, +POST /:id/messages handler)
@@ -69,6 +78,7 @@
 ---
 
 ## Codebase Patterns
+- Custom headers on SSE responses: call `c.header(name, value)` before `streamSSE(c, ...)` — they appear in `res.headers` on the SSE client side (same-origin)
 - Cross-island node refresh: `appStore.nodeRefreshTrigger` counter incremented by ChatPanel after stream; Mindmap subscription detects change and increments local `refreshKey`; `refreshKey` in fetch `useEffect` deps triggers re-fetch. `biome-ignore` must go on the line ABOVE `useEffect(`, not inside the callback.
 - SSE stream parsing via fetch: `res.body.getReader()` → loop `reader.read()` → `TextDecoder.decode(value, { stream: true })` → split on `\n`, keep tail (`lines.pop()`) for incomplete lines → filter `line.startsWith('data: ')` → slice 6 chars to get payload.
 - Throttled `useState` setter in component: `useRef(throttle(setter, { wait: 16 })).current` — ref initializer runs once, captures stable setter; use for streaming content batching at ~60fps.
