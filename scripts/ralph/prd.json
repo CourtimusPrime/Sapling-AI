@@ -292,8 +292,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 17,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "ChatPanel island fully rewritten with streaming UI. model input (provider/model format). textarea + Send button (disabled while isStreaming). handleSend() calls POST /api/chats/:id/messages, reads SSE stream via ReadableStream/TextDecoder, batches UI updates via @tanstack/pacer throttle(setter, { wait: 16 }). Optimistic user message (pendingUser) and live streaming assistant bubble (streamContent) shown during stream. After stream: refetches nodes inline, auto-selects newest assistant node, increments appStore.nodeRefreshTrigger. stores/chat.ts updated with nodeRefreshTrigger: number field. Mindmap.tsx extended: refreshKey state incremented from store subscription when nodeRefreshTrigger changes; biome-ignore on refreshKey dep. Cross-island node refresh via appStore.nodeRefreshTrigger → Mindmap refreshKey → fetch useEffect deps."
     },
     {
       "id": "US-018",
