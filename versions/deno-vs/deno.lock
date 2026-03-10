@@ -35,7 +35,9 @@
     "npm:@preact/signals@^2.2.1": "2.7.1_preact@10.28.3",
     "npm:@preact/signals@^2.5.0": "2.7.1_preact@10.28.3",
     "npm:@prefresh/vite@^2.4.8": "2.4.11_preact@10.28.3_vite@7.3.1",
+    "npm:@tanstack/preact-query@5": "5.93.0_preact@10.28.3",
     "npm:@tanstack/store@0": "0.9.2",
+    "npm:@types/d3-hierarchy@^3.1.7": "3.1.7",
     "npm:@unocss/preset-wind@~0.65.3": "0.65.4",
     "npm:d3-hierarchy@3": "3.1.2",
     "npm:drizzle-kit@0.30": "0.30.6",
@@ -1365,6 +1367,16 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
+    "@tanstack/preact-query@5.93.0_preact@10.28.3": {
+      "integrity": "sha512-c4vQWaO5mWhLUo4JYH6mfXUTK0DS+yO6S+3LLX2o0leALxzI8iRip84Cuty5iz/qQeKRULrOWHeNOt6EU6w2aw==",
+      "dependencies": [
+        "@tanstack/query-core",
+        "preact"
+      ]
+    },
+    "@tanstack/query-core@5.90.20": {
+      "integrity": "sha512-OMD2HLpNouXEfZJWcKeVKUgQ5n+n3A2JFmBaScpNDUqSrQSjiveC7dKMe53uJUg1nDG16ttFPz2xfilz6i2uVg=="
+    },
     "@tanstack/store@0.9.2": {
       "integrity": "sha512-K013lUJEFJK2ofFQ/hZKJUmCnpcV00ebLyOyFOWQvyQHUOZp/iYO84BM6aOGiV81JzwbX0APTVmW8YI7yiG5oA=="
     },
@@ -2452,7 +2464,9 @@
       "npm:@biomejs/biome@^1.9.4",
       "npm:@libsql/client@0.14",
       "npm:@preact/signals@^2.5.0",
+      "npm:@tanstack/preact-query@5",
       "npm:@tanstack/store@0",
+      "npm:@types/d3-hierarchy@^3.1.7",
       "npm:@unocss/preset-wind@~0.65.3",
       "npm:d3-hierarchy@3",
       "npm:drizzle-kit@0.30",

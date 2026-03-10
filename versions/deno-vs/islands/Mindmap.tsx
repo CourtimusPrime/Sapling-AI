@@ -27,15 +27,42 @@ const ROLE_COLORS: Record<MindmapNode["role"], string> = {
   system: "#9ca3af",
 };
 
-export default function Mindmap({ nodes }: { nodes: MindmapNode[] }) {
+export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] }) {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(appStore.state.activeNodeId);
+  const [activeChatId, setActiveChatId] = useState<string | null>(appStore.state.activeChatId);
+  const [fetchedNodes, setFetchedNodes] = useState<MindmapNode[] | null>(null);
 
+  // Subscribe to appStore changes
   useEffect(() => {
     const sub = appStore.subscribe((value) => {
       setActiveNodeId(value.activeNodeId);
+      setActiveChatId(value.activeChatId);
     });
     return () => sub.unsubscribe();
   }, []);
+
+  // Fetch nodes whenever the active chat changes
+  useEffect(() => {
+    if (!activeChatId) {
+      setFetchedNodes(null);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(`/api/chats/${activeChatId}/nodes`);
+        if (!res.ok) {
+          setFetchedNodes([]);
+          return;
+        }
+        const data = (await res.json()) as MindmapNode[];
+        setFetchedNodes(data);
+      } catch {
+        setFetchedNodes([]);
+      }
+    })();
+  }, [activeChatId]);
+
+  const nodes = fetchedNodes !== null ? fetchedNodes : initialNodes;
 
   if (nodes.length === 0) {
     return (
