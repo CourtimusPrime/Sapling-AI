@@ -149,8 +149,8 @@
         "Typecheck passes"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "lib/crypto.ts implements AES-GCM encrypt/decrypt using Web Crypto API (HKDF key derivation from ENCRYPTION_KEY env var; iv prepended to ciphertext; stored as base64url). lib/keys.ts exports getDecryptedKey(userId, provider) which queries userApiKey table and decrypts. api/routes/settings.ts implements PUT /api/settings/api-key (upsert with onConflictDoUpdate), GET /api/settings/api-key (list providers with isSet:true, no raw keys), DELETE /api/settings/api-key/:provider. settingsRouter mounted on protectedRoutes in api/app.ts so all routes require auth."
     },
     {
       "id": "US-010",

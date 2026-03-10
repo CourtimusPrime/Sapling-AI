@@ -1,4 +1,9 @@
 ## Codebase Patterns
+- AES-GCM encryption: `lib/crypto.ts` exports `encrypt(plaintext)` / `decrypt(encoded)` — key derived via HKDF from `ENCRYPTION_KEY` env var; ciphertext stored as base64url(iv || ciphertext)
+- `getDecryptedKey(userId, provider)` in `lib/keys.ts` decrypts and returns the raw API key (or null) — use for server-side LLM calls
+- Drizzle upsert pattern: `.insert(table).values({...}).onConflictDoUpdate({ target: [col1, col2], set: { col: newVal } })`
+- Settings routes mounted as `protectedRoutes.route("/settings", settingsRouter)` in `api/app.ts` — all routes under `/api/settings/*` automatically require auth
+- Biome requires `import type { Foo }` (not `import { type Foo }`) when the imported symbol is only used as a type
 - Fresh 2's `ctx.render()` requires a VNode argument (e.g. `ctx.render(<MyComponent />)`) — it does NOT support a zero-arg call unlike Fresh 1
 - Server-side auth checks in Fresh 2 route handlers: use `getAuthUser(ctx.req)` (lib/auth.ts) to parse and verify the JWT cookie from a standard Request — no Hono context needed
 - Preact JSX in islands: use explicit prop interfaces with `type?: string`, `disabled?: boolean` etc. — spreading `JSX.HTMLAttributes<HTMLInputElement>` does NOT include `type` under Deno's Preact types
@@ -29,6 +34,16 @@
 - Drizzle select single row: `const [row] = await db.select(...).from(table).where(...).limit(1);` (async, returns array)
 - JWT cookie: `setCookie(c, "auth", token, { httpOnly: true, sameSite: "Lax", path: "/", maxAge: ... })` from `hono/cookie`
 
+---
+
+## 2026-03-10 - US-009
+- What was implemented: AES-GCM encryption helpers in lib/crypto.ts (encrypt/decrypt using HKDF-derived key from ENCRYPTION_KEY env var, iv prepended to ciphertext, stored as base64url); getDecryptedKey(userId, provider) in lib/keys.ts; PUT /api/settings/api-key (Zod validation, encrypt key, upsert via onConflictDoUpdate), GET /api/settings/api-key (list providers with isSet:true, no raw keys), DELETE /api/settings/api-key/:provider — all mounted under protectedRoutes in api/app.ts so requireAuth applies automatically
+- Files changed: versions/deno-vs/lib/crypto.ts (new), versions/deno-vs/lib/keys.ts (new), versions/deno-vs/api/routes/settings.ts (new), versions/deno-vs/api/app.ts (import + route mount)
+- **Learnings for future iterations:**
+  - Drizzle upsert: `.insert(table).values({...}).onConflictDoUpdate({ target: [col1, col2], set: { col: newVal } })` — composite PK columns listed in target array
+  - Biome requires `import type { Foo }` (top-level import type) not `import { type Foo }` (inline type modifier) for type-only imports
+  - HKDF key derivation: import raw key material with `importKey("raw", bytes, "HKDF", false, ["deriveKey"])` then `deriveKey(...)` to get an AES-GCM key — fixed-salt is fine for symmetric encryption where the same key is used for all records
+  - AES-GCM: 12-byte random IV prepended to ciphertext, then base64url-encoded; reverse on decrypt by slicing bytes[0:12] for IV, bytes[12:] for ciphertext
 ---
 
 ## 2026-03-09 - US-008
