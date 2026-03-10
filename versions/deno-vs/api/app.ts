@@ -1,6 +1,7 @@
 import { type AuthEnv, requireAuth } from "@/lib/auth.ts";
 import { Hono } from "hono";
 import { authRouter } from "./routes/auth.ts";
+import { chatsRouter } from "./routes/chats.ts";
 import { settingsRouter } from "./routes/settings.ts";
 
 export const api = new Hono().basePath("/api");
@@ -12,8 +13,7 @@ api.route("/auth", authRouter);
 const protectedRoutes = new Hono<AuthEnv>();
 protectedRoutes.use("/*", requireAuth);
 
-// Stub for GET /api/chats (replaced in US-011)
-protectedRoutes.get("/chats", (c) => c.json([]));
+protectedRoutes.route("/chats", chatsRouter);
 protectedRoutes.route("/settings", settingsRouter);
 
 api.route("/", protectedRoutes);
