@@ -345,7 +345,7 @@ export default function Mindmap() {
                 }}
                 class="w-28 rounded border border-neutral-300 bg-white px-1.5 py-0.5 text-xs focus:border-neutral-500 focus:outline-none"
                 placeholder="Branch label\u2026"
-                autoFocus
+                ref={(el: HTMLInputElement | null) => el?.focus()}
               />
             </div>
           );

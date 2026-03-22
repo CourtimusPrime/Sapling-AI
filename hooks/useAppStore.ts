@@ -6,6 +6,7 @@ import type { AppState } from "../stores/chat.ts";
 export function useAppStore<T>(selector: (state: AppState) => T): T {
   const [value, setValue] = useState(() => selector(appStore.state));
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selector is stable by convention — callers pass inline arrow functions that should not cause re-subscription
   useEffect(() => {
     const unsub = appStore.subscribe(({ currentVal }) => {
       const next = selector(currentVal);

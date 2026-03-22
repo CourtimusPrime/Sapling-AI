@@ -97,9 +97,7 @@ export default function ChatPanel() {
     );
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: memoize tree computations
   const path = useMemo(() => getAncestorPath(nodes, activeNodeId), [nodes, activeNodeId]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: memoize parent set
   const childParentIds = useMemo(() => getParentIds(nodes), [nodes]);
   const activeNode = activeNodeId ? nodes.find((n) => n.id === activeNodeId) : undefined;
   const isForkingFromNonLeaf = !!activeNode && childParentIds.has(activeNodeId ?? "");
