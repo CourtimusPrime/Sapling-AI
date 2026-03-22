@@ -22,8 +22,9 @@ import {
   PromptInputTextarea,
 } from "../components/ai-elements/prompt-input.tsx";
 import { SkeletonBlock } from "../components/ai-elements/shimmer.tsx";
+import { useAppStore } from "../hooks/useAppStore.ts";
 import { getAncestorPath, getParentIds } from "../lib/tree.ts";
-import { type MindmapNode, appStore, fetchNodes } from "../stores/chat.ts";
+import { appStore, fetchNodes } from "../stores/chat.ts";
 
 function TokenBar({ count, limit }: { count: number; limit: number }) {
   const pct = Math.min((count / limit) * 100, 100);
@@ -50,12 +51,10 @@ function TokenBar({ count, limit }: { count: number; limit: number }) {
 }
 
 export default function ChatPanel() {
-  const [activeChatId, setActiveChatId] = useState<string | null>(appStore.state.activeChatId);
-  const [activeNodeId, setActiveNodeId] = useState<string | null>(appStore.state.activeNodeId);
-  const [chatDefaultModel, setChatDefaultModel] = useState<string | null>(
-    appStore.state.chatDefaultModel,
-  );
-  const [nodes, setNodes] = useState<MindmapNode[]>(appStore.state.nodes);
+  const activeChatId = useAppStore((s) => s.activeChatId);
+  const activeNodeId = useAppStore((s) => s.activeNodeId);
+  const chatDefaultModel = useAppStore((s) => s.chatDefaultModel);
+  const nodes = useAppStore((s) => s.nodes);
   const [input, setInput] = useState("");
   const [model, setModel] = useState(appStore.state.chatDefaultModel ?? "");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -73,16 +72,6 @@ export default function ChatPanel() {
   const throttledSetStreamContent = useRef(
     throttle((text: string) => setStreamContent(text), { wait: 16 }),
   ).current;
-
-  useEffect(() => {
-    const unsub = appStore.subscribe(({ currentVal }) => {
-      setActiveChatId(currentVal.activeChatId);
-      setActiveNodeId(currentVal.activeNodeId);
-      setChatDefaultModel(currentVal.chatDefaultModel);
-      setNodes(currentVal.nodes);
-    });
-    return unsub;
-  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId is intentional trigger dep
   useEffect(() => {
@@ -147,7 +136,6 @@ export default function ChatPanel() {
       if (res.ok) {
         const newDefault = defaultModelInput || null;
         appStore.setState((prev) => ({ ...prev, chatDefaultModel: newDefault }));
-        setChatDefaultModel(newDefault);
         setModel(newDefault ?? "");
         setShowChatSettings(false);
       }
@@ -268,7 +256,7 @@ export default function ChatPanel() {
 
   return (
     <div class="flex h-full flex-col bg-white">
-      {/* ── Message list ── */}
+      {/* -- Message list -- */}
       <Conversation class="flex-1" stickToBottom>
         <ConversationContent class="mx-auto w-full max-w-2xl px-4 pb-6 pt-8">
           {nodes.length === 0 && !pendingUser && (
@@ -352,7 +340,7 @@ export default function ChatPanel() {
         </ConversationContent>
       </Conversation>
 
-      {/* ── Input area ── */}
+      {/* -- Input area -- */}
       <div class="border-t border-neutral-100 bg-white px-4 pb-4 pt-3">
         <div class="mx-auto w-full max-w-2xl flex flex-col gap-2">
           {/* Settings panel */}
@@ -462,7 +450,7 @@ export default function ChatPanel() {
                   System
                 </PromptInputButton>
 
-                {/* Settings toggle — shows active dot when override is set */}
+                {/* Settings toggle -- shows active dot when override is set */}
                 <button
                   type="button"
                   onClick={() => {

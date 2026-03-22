@@ -189,6 +189,7 @@ chatsRouter.get("/:id/nodes", async (c) => {
       parentId: node.parentId,
       role: node.role,
       content: node.content,
+      label: node.label,
       createdAt: node.createdAt,
       metaNodeId: nodeMetadata.nodeId,
       metaProvider: nodeMetadata.provider,
@@ -205,6 +206,7 @@ chatsRouter.get("/:id/nodes", async (c) => {
     parentId: row.parentId,
     role: row.role,
     content: row.content,
+    label: row.label,
     createdAt: row.createdAt,
     metadata:
       row.metaNodeId !== null
@@ -280,7 +282,10 @@ chatsRouter.post("/:id/messages", async (c) => {
     const slashIdx = fallbackModel.indexOf("/");
     if (slashIdx === -1) {
       return c.json(
-        { error: "No model configured. Set a default model for this chat or SAPLING_DEFAULT_MODEL env var." },
+        {
+          error:
+            "No model configured. Set a default model for this chat or SAPLING_DEFAULT_MODEL env var.",
+        },
         400,
       );
     }
@@ -365,6 +370,32 @@ chatsRouter.post("/:id/messages", async (c) => {
       tokenCount: finalTokenCount,
     });
   });
+});
+
+// PATCH /api/chats/:chatId/nodes/:nodeId
+chatsRouter.patch("/:chatId/nodes/:nodeId", async (c) => {
+  const chatId = c.req.param("chatId");
+  const nodeId = c.req.param("nodeId");
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = z.object({ label: z.string().nullable() }).safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0].message }, 400);
+
+  const [existing] = await db
+    .select({ id: node.id })
+    .from(node)
+    .where(and(eq(node.id, nodeId), eq(node.chatId, chatId)))
+    .limit(1);
+  if (!existing) return c.json({ error: "Node not found" }, 404);
+
+  await db.update(node).set({ label: parsed.data.label }).where(eq(node.id, nodeId));
+  return c.json({ ok: true });
 });
 
 // DELETE /api/chats/:id

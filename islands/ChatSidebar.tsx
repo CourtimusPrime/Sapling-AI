@@ -6,8 +6,8 @@ import {
   useQueryClient,
 } from "@tanstack/preact-query";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { getLatestLeafId } from "../lib/tree.ts";
-import { appStore, fetchNodes } from "../stores/chat.ts";
+import { useAppStore } from "../hooks/useAppStore.ts";
+import { appStore, selectChat } from "../stores/chat.ts";
 
 interface Chat {
   id: string;
@@ -34,18 +34,11 @@ export default function ChatSidebar() {
 
 function SidebarInner() {
   const qc = useQueryClient();
-  const [activeChatId, setActiveChatId] = useState<string | null>(appStore.state.activeChatId);
+  const activeChatId = useAppStore((s) => s.activeChatId);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const unsub = appStore.subscribe(({ currentVal }) => {
-      setActiveChatId(currentVal.activeChatId);
-    });
-    return unsub;
-  }, []);
 
   const {
     data: chats = [],
@@ -64,21 +57,7 @@ function SidebarInner() {
   useEffect(() => {
     if (chats.length === 0 || appStore.state.activeChatId) return;
     const firstChat = chats[0];
-    appStore.setState((prev) => ({
-      ...prev,
-      activeChatId: firstChat.id,
-      activeNodeId: null,
-      chatDefaultModel: firstChat.defaultModel,
-    }));
-    fetchNodes(firstChat.id).then((nodes) => {
-      const leafId = getLatestLeafId(nodes);
-      if (leafId && appStore.state.activeChatId === firstChat.id) {
-        appStore.setState((prev) => ({
-          ...prev,
-          activeNodeId: leafId,
-        }));
-      }
-    });
+    selectChat(firstChat.id, firstChat.defaultModel);
   }, [chats]);
 
   const createMutation = useMutation<Chat, Error, void>({
@@ -153,20 +132,7 @@ function SidebarInner() {
 
   async function handleChatClick(selectedChat: Chat) {
     if (renamingId || confirmDeleteId) return;
-    appStore.setState((prev) => ({
-      ...prev,
-      activeChatId: selectedChat.id,
-      activeNodeId: null,
-      chatDefaultModel: selectedChat.defaultModel,
-    }));
-    const nodes = await fetchNodes(selectedChat.id);
-    const leafId = getLatestLeafId(nodes);
-    if (leafId && appStore.state.activeChatId === selectedChat.id) {
-      appStore.setState((prev) => ({
-        ...prev,
-        activeNodeId: leafId,
-      }));
-    }
+    selectChat(selectedChat.id, selectedChat.defaultModel);
   }
 
   return (
@@ -305,7 +271,7 @@ function SidebarInner() {
                 class="w-full px-3 py-2.5 text-left"
                 onClick={() => handleChatClick(chat)}
               >
-                {/* Title — reserves right space so it never jumps on hover */}
+                {/* Title -- reserves right space so it never jumps on hover */}
                 <div
                   class={`truncate text-sm leading-snug ${
                     isActive ? "font-medium text-black" : "text-neutral-600"
@@ -317,7 +283,7 @@ function SidebarInner() {
                 <div class="mt-0.5 text-[11px] text-neutral-400">{formatDate(chat.createdAt)}</div>
               </button>
 
-              {/* Actions — fade in/out with no layout shift (always rendered) */}
+              {/* Actions -- fade in/out with no layout shift (always rendered) */}
               <div class="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
                 <button
                   type="button"

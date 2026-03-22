@@ -1,8 +1,8 @@
 import ChatPanel from "../islands/ChatPanel.tsx";
 import ChatSidebar from "../islands/ChatSidebar.tsx";
 import Mindmap from "../islands/Mindmap.tsx";
-import type { MindmapNode } from "../islands/Mindmap.tsx";
 import SettingsPanel from "../islands/SettingsPanel.tsx";
+import type { MindmapNode } from "../types/node.ts";
 import { define } from "../utils.ts";
 
 export const handler = define.handlers({

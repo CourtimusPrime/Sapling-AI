@@ -1,4 +1,4 @@
-import type { MindmapNode } from "../islands/Mindmap.tsx";
+import type { MindmapNode } from "../types/node.ts";
 
 /** Walk from targetId up to root, returning ordered ancestor path [root, ..., target] */
 export function getAncestorPath(nodes: MindmapNode[], targetId: string | null): MindmapNode[] {

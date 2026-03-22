@@ -2,22 +2,12 @@ import { throttle } from "@tanstack/pacer";
 // @deno-types="npm:@types/d3-hierarchy@^3.1.7"
 import { stratify, tree } from "d3-hierarchy";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { appStore } from "../stores/chat.ts";
+import { useAppStore } from "../hooks/useAppStore.ts";
+import { appStore, fetchNodes } from "../stores/chat.ts";
 import type { Viewport } from "../stores/chat.ts";
+import type { MindmapNode } from "../types/node.ts";
 
-export interface MindmapNode {
-  id: string;
-  parentId: string | null;
-  role: "user" | "assistant" | "system";
-  content: string;
-  createdAt: string;
-  metadata: {
-    provider: string;
-    model: string;
-    temperature: number;
-    tokenCount: number;
-  } | null;
-}
+export type { MindmapNode };
 
 const NODE_SIZE_X = 80;
 const NODE_SIZE_Y = 80;
@@ -39,9 +29,9 @@ const throttledViewportUpdate = throttle(
 );
 
 export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] }) {
-  const [activeNodeId, setActiveNodeId] = useState<string | null>(appStore.state.activeNodeId);
-  const [activeChatId, setActiveChatId] = useState<string | null>(appStore.state.activeChatId);
-  const [nodes, setNodes] = useState<MindmapNode[]>(appStore.state.nodes);
+  const activeNodeId = useAppStore((s) => s.activeNodeId);
+  const activeChatId = useAppStore((s) => s.activeChatId);
+  const nodes = useAppStore((s) => s.nodes);
   const [viewport, setViewport] = useState<Viewport>(appStore.state.viewport);
   const [isPanning, setIsPanning] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -50,6 +40,8 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
     x: number;
     y: number;
   } | null>(null);
+  const [editingLabelNodeId, setEditingLabelNodeId] = useState<string | null>(null);
+  const [labelInput, setLabelInput] = useState("");
 
   const svgRef = useRef<SVGSVGElement>(null);
   const viewportRef = useRef<Viewport>(appStore.state.viewport);
@@ -60,16 +52,6 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
   useEffect(() => {
     viewportRef.current = viewport;
   }, [viewport]);
-
-  // Subscribe to appStore
-  useEffect(() => {
-    const unsub = appStore.subscribe(({ currentVal }) => {
-      setActiveNodeId(currentVal.activeNodeId);
-      setActiveChatId(currentVal.activeChatId);
-      setNodes(currentVal.nodes);
-    });
-    return unsub;
-  }, []);
 
   // Center viewport when the active chat changes (activeChatId is intentionally in deps as trigger)
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId triggers the re-center
@@ -220,8 +202,17 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
               aria-label={`${node.data.role}: ${label}`}
               style={{ cursor: "pointer", opacity: isOnActivePath ? 1 : INACTIVE_NODE_OPACITY }}
               onClick={() => handleNodeClick(node.data.id)}
+              onDblClick={(e) => {
+                e.stopPropagation();
+                setEditingLabelNodeId(node.data.id);
+                setLabelInput(node.data.label ?? "");
+              }}
               onKeyDown={(e: KeyboardEvent) => {
                 if (e.key === "Enter" || e.key === " ") handleNodeClick(node.data.id);
+                if (e.key === "f" || e.key === "F") {
+                  e.preventDefault();
+                  handleNodeClick(node.data.id);
+                }
               }}
               onMouseEnter={() => {
                 setHoveredNodeId(node.data.id);
@@ -276,6 +267,19 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
                   />
                 </g>
               )}
+              {node.data.label && (
+                <text
+                  y={isActive ? 28 : 22}
+                  text-anchor="middle"
+                  font-size="9"
+                  fill="#374151"
+                  style={{ pointerEvents: "none" }}
+                >
+                  {node.data.label.length > 16
+                    ? `${node.data.label.slice(0, 15)}\u2026`
+                    : node.data.label}
+                </text>
+              )}
             </g>
           );
         })}
@@ -323,6 +327,41 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
           </div>
         </div>
       )}
+      {editingLabelNodeId &&
+        (() => {
+          const editNode = treeData?.descendants.find((d) => d.data.id === editingLabelNodeId);
+          if (!editNode) return null;
+          const x = viewport.x + editNode.x * viewport.scale;
+          const y = viewport.y + editNode.y * viewport.scale + 30;
+          return (
+            <div class="absolute z-20 flex gap-1" style={{ left: `${x - 60}px`, top: `${y}px` }}>
+              <input
+                type="text"
+                value={labelInput}
+                onInput={(e) => setLabelInput((e.target as HTMLInputElement).value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter") {
+                    const label = labelInput.trim() || null;
+                    const chatId = appStore.state.activeChatId;
+                    if (chatId) {
+                      await fetch(`/api/chats/${chatId}/nodes/${editingLabelNodeId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ label }),
+                      });
+                      await fetchNodes(chatId);
+                    }
+                    setEditingLabelNodeId(null);
+                  }
+                  if (e.key === "Escape") setEditingLabelNodeId(null);
+                }}
+                class="w-28 rounded border border-neutral-300 bg-white px-1.5 py-0.5 text-xs focus:border-neutral-500 focus:outline-none"
+                placeholder="Branch label\u2026"
+                autoFocus
+              />
+            </div>
+          );
+        })()}
     </div>
   );
 }

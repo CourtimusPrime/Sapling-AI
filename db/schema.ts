@@ -45,6 +45,7 @@ export const node = sqliteTable(
     parentId: text("parent_id"), // nullable — null = root node of the chat
     role: text("role", { enum: ["user", "assistant", "system"] }).notNull(),
     content: text("content").notNull(),
+    label: text("label"), // nullable — user-set branch annotation
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   },
   (t) => [index("node_chat_id_idx").on(t.chatId), index("node_parent_id_idx").on(t.parentId)],
