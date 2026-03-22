@@ -52,7 +52,9 @@ function TokenBar({ count, limit }: { count: number; limit: number }) {
           }}
         />
       </div>
-      <span class={`flex-shrink-0 font-mono text-[10px] tabular-nums ${danger ? "text-red-500" : "text-neutral-400"}`}>
+      <span
+        class={`flex-shrink-0 font-mono text-[10px] tabular-nums ${danger ? "text-red-500" : "text-neutral-400"}`}
+      >
         {count.toLocaleString()}&thinsp;/&thinsp;{limit.toLocaleString()}
       </span>
     </div>
@@ -109,7 +111,10 @@ export default function ChatPanel() {
     (async () => {
       try {
         const res = await fetch(`/api/chats/${activeChatId}/nodes`);
-        if (!res.ok) { setNodes([]); return; }
+        if (!res.ok) {
+          setNodes([]);
+          return;
+        }
         const data = (await res.json()) as MindmapNode[];
         setNodes(data);
       } catch {
@@ -148,8 +153,12 @@ export default function ChatPanel() {
         setNodes(data);
         const newest =
           role === "user"
-            ? data.filter((n) => n.role === "assistant").sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]
-            : data.filter((n) => n.role === "system").sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
+            ? data
+                .filter((n) => n.role === "assistant")
+                .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]
+            : data
+                .filter((n) => n.role === "system")
+                .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
         appStore.setState((prev) => ({
           ...prev,
           activeNodeId: newest?.id ?? prev.activeNodeId,
@@ -180,8 +189,11 @@ export default function ChatPanel() {
         setModel(newDefault ?? "");
         setShowChatSettings(false);
       }
-    } catch { /* ignore */ }
-    finally { setIsSavingDefault(false); }
+    } catch {
+      /* ignore */
+    } finally {
+      setIsSavingDefault(false);
+    }
   }
 
   async function handleSend() {
@@ -212,7 +224,9 @@ export default function ChatPanel() {
           }),
         });
         if (!res.ok) {
-          const err = (await res.json().catch(() => ({ error: "Request failed" }))) as { error: string };
+          const err = (await res.json().catch(() => ({ error: "Request failed" }))) as {
+            error: string;
+          };
           console.error("Send failed:", err.error);
         }
       } catch (err) {
@@ -242,7 +256,9 @@ export default function ChatPanel() {
       });
 
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({ error: "Request failed" }))) as { error: string };
+        const err = (await res.json().catch(() => ({ error: "Request failed" }))) as {
+          error: string;
+        };
         console.error("Send failed:", err.error);
         return;
       }
@@ -252,7 +268,10 @@ export default function ChatPanel() {
       if (xCount) setTokenCount(Number(xCount));
       if (xLimit) setTokenLimit(Number(xLimit));
 
-      if (!res.body) { console.error("No response body"); return; }
+      if (!res.body) {
+        console.error("No response body");
+        return;
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -306,9 +325,7 @@ export default function ChatPanel() {
           {path.map((node) => (
             <Message key={node.id} from={node.role as "user" | "assistant" | "system"}>
               {node.role !== "user" && (
-                <MessageLabel>
-                  {node.role === "system" ? "System" : "Assistant"}
-                </MessageLabel>
+                <MessageLabel>{node.role === "system" ? "System" : "Assistant"}</MessageLabel>
               )}
               <MessageContent
                 role={node.role as "user" | "assistant" | "system"}
@@ -335,7 +352,10 @@ export default function ChatPanel() {
                     <MessageMetaRow label="Provider" value={node.metadata.provider} />
                     <MessageMetaRow label="Model" value={node.metadata.model} />
                     <MessageMetaRow label="Temperature" value={node.metadata.temperature} />
-                    <MessageMetaRow label="Tokens" value={node.metadata.tokenCount.toLocaleString()} />
+                    <MessageMetaRow
+                      label="Tokens"
+                      value={node.metadata.tokenCount.toLocaleString()}
+                    />
                   </MessageMeta>
                 )}
               </MessageContent>
@@ -371,56 +391,67 @@ export default function ChatPanel() {
       </Conversation>
 
       {/* ── Input area ── */}
-      <div class="border-t border-neutral-100 bg-white px-4 py-4">
+      <div class="border-t border-neutral-100 bg-white px-4 pb-4 pt-3">
         <div class="mx-auto w-full max-w-2xl flex flex-col gap-2">
-          {/* Model row */}
-          <div class="flex items-center justify-between">
-            <span class="font-mono text-[11px] text-neutral-400">
-              {chatDefaultModel ? (
-                <>{chatDefaultModel}</>
-              ) : (
-                <span class="italic opacity-60">no default model</span>
-              )}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setShowChatSettings((v) => !v);
-                setDefaultModelInput(chatDefaultModel ?? "");
-              }}
-              class="text-[11px] text-neutral-400 transition-colors hover:text-neutral-600"
-            >
-              {showChatSettings ? "Close" : "Configure"}
-            </button>
-          </div>
-
-          {/* Chat settings panel */}
+          {/* Settings panel */}
           {showChatSettings && (
-            <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-3">
-              <div class="mb-2 text-[11px] font-medium text-neutral-500">Default model</div>
-              <div class="flex gap-1.5">
-                <input
-                  type="text"
-                  value={defaultModelInput}
-                  onInput={(e) => setDefaultModelInput((e.target as HTMLInputElement).value)}
-                  placeholder="provider/model-name"
-                  class="flex-1 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleSaveDefaultModel}
-                  disabled={isSavingDefault}
-                  class="rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-40"
-                >
-                  {isSavingDefault ? "…" : "Save"}
-                </button>
+            <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+              <div class="mb-3 flex items-center justify-between">
+                <span class="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+                  Chat settings
+                </span>
                 <button
                   type="button"
                   onClick={() => setShowChatSettings(false)}
-                  class="rounded-lg px-2 py-1.5 text-xs text-neutral-500 transition-colors hover:bg-neutral-100"
+                  class="text-neutral-400 hover:text-neutral-600"
                 >
-                  ×
+                  <svg
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    class="h-3 w-3"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  >
+                    <path d="M1 1l10 10M11 1 1 11" />
+                  </svg>
                 </button>
+              </div>
+              <div class="flex flex-col gap-2.5">
+                <div>
+                  <label class="mb-1 block text-[11px] text-neutral-500">
+                    Default model (saved)
+                  </label>
+                  <div class="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={defaultModelInput}
+                      onInput={(e) => setDefaultModelInput((e.target as HTMLInputElement).value)}
+                      placeholder="provider/model-name"
+                      class="flex-1 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveDefaultModel}
+                      disabled={isSavingDefault}
+                      class="rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-40"
+                    >
+                      {isSavingDefault ? "…" : "Save"}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label class="mb-1 block text-[11px] text-neutral-500">
+                    Override model (this message)
+                  </label>
+                  <input
+                    type="text"
+                    value={model}
+                    onInput={(e) => setModel((e.target as HTMLInputElement).value)}
+                    placeholder={chatDefaultModel ?? "provider/model-name"}
+                    class="w-full rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -442,31 +473,72 @@ export default function ChatPanel() {
               value={input}
               disabled={isStreaming}
               rows={2}
-              placeholder={
-                isSystemMode
-                  ? "System instruction… (Enter to send)"
-                  : "Message… (Enter to send, Shift+Enter for newline)"
-              }
+              placeholder={isSystemMode ? "System instruction…" : "Message…"}
               onValueChange={setInput}
               onSubmit={handleSend}
             />
             <PromptInputFooter>
               <PromptInputActions>
+                {/* System mode toggle */}
                 <PromptInputButton
                   active={isSystemMode}
                   disabled={isStreaming}
                   onClick={() => setIsSystemMode((v) => !v)}
                   title="Toggle system message mode"
                 >
-                  {isSystemMode ? "⚙ System on" : "⚙ System"}
+                  <svg
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    class="h-3 w-3"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                  >
+                    <circle cx="7" cy="7" r="2" />
+                    <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.8 2.8l1.1 1.1M10.1 10.1l1.1 1.1M2.8 11.2l1.1-1.1M10.1 3.9l1.1-1.1" />
+                  </svg>
+                  System
                 </PromptInputButton>
-                <input
-                  type="text"
-                  value={model}
-                  onInput={(e) => setModel((e.target as HTMLInputElement).value)}
-                  placeholder="model override"
-                  class="h-7 rounded-lg border border-neutral-200 bg-transparent px-2 font-mono text-xs text-neutral-500 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
-                />
+
+                {/* Settings toggle — shows active dot when override is set */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChatSettings((v) => !v);
+                    setDefaultModelInput(chatDefaultModel ?? "");
+                  }}
+                  class={`relative flex h-7 items-center gap-1 rounded-lg px-2.5 text-xs font-medium transition-all ${
+                    showChatSettings
+                      ? "bg-neutral-100 text-neutral-700"
+                      : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+                  }`}
+                  title="Chat settings"
+                >
+                  <svg
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    class="h-3 w-3"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M11.5 7A4.5 4.5 0 1 1 7 2.5" />
+                    <path d="M9 1h4v4" />
+                    <path d="M13 1 7 7" />
+                  </svg>
+                  {chatDefaultModel ? (
+                    <span class="max-w-[80px] truncate font-mono text-[10px]">
+                      {chatDefaultModel.split("/")[1] ?? chatDefaultModel}
+                    </span>
+                  ) : (
+                    "Model"
+                  )}
+                  {/* Override active indicator */}
+                  {model && model !== chatDefaultModel && (
+                    <span class="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-black" />
+                  )}
+                </button>
               </PromptInputActions>
               <PromptInputSubmit
                 disabled={!input.trim()}
@@ -479,9 +551,7 @@ export default function ChatPanel() {
           </PromptInput>
 
           {isSystemMode && (
-            <p class="text-center text-xs text-neutral-400">
-              Next message will be a system node
-            </p>
+            <p class="text-center text-[11px] text-neutral-400">Next send creates a system node</p>
           )}
         </div>
       </div>
