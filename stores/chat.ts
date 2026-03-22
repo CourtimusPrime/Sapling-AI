@@ -4,17 +4,10 @@ import type { MindmapNode } from "../types/node.ts";
 
 export type { MindmapNode };
 
-export interface Viewport {
-  x: number;
-  y: number;
-  scale: number;
-}
-
 export interface AppState {
   activeNodeId: string | null;
   activeChatId: string | null;
   chatDefaultModel: string | null;
-  viewport: Viewport;
   nodes: MindmapNode[];
 }
 
@@ -22,7 +15,6 @@ export const appStore = new Store<AppState>({
   activeNodeId: null,
   activeChatId: null,
   chatDefaultModel: null,
-  viewport: { x: 0, y: 0, scale: 1 },
   nodes: [],
 });
 

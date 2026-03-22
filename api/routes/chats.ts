@@ -196,6 +196,7 @@ chatsRouter.get("/:id/nodes", async (c) => {
       metaModel: nodeMetadata.model,
       metaTemperature: nodeMetadata.temperature,
       metaTokenCount: nodeMetadata.tokenCount,
+      metaToolsCalled: nodeMetadata.toolsCalled,
     })
     .from(node)
     .leftJoin(nodeMetadata, eq(nodeMetadata.nodeId, node.id))
@@ -215,6 +216,7 @@ chatsRouter.get("/:id/nodes", async (c) => {
             model: row.metaModel,
             temperature: row.metaTemperature,
             tokenCount: row.metaTokenCount,
+            toolsCalled: row.metaToolsCalled ? JSON.parse(row.metaToolsCalled as string) : null,
           }
         : null,
   }));

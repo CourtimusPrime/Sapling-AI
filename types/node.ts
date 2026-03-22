@@ -10,5 +10,6 @@ export interface MindmapNode {
     model: string;
     temperature: number;
     tokenCount: number;
+    toolsCalled: string[] | null;
   } | null;
 }

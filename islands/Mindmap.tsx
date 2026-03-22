@@ -1,10 +1,8 @@
-import { throttle } from "@tanstack/pacer";
 // @deno-types="npm:@types/d3-hierarchy@^3.1.7"
 import { stratify, tree } from "d3-hierarchy";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useAppStore } from "../hooks/useAppStore.ts";
 import { appStore, fetchNodes } from "../stores/chat.ts";
-import type { Viewport } from "../stores/chat.ts";
 import type { MindmapNode } from "../types/node.ts";
 
 export type { MindmapNode };
@@ -22,17 +20,17 @@ const ACTIVE_PATH_COLOR = "#1d4ed8";
 const INACTIVE_LINK_COLOR = "#e5e7eb";
 const INACTIVE_NODE_OPACITY = 0.35;
 
-// Throttled viewport store update — at most once per 16ms (~60fps)
-const throttledViewportUpdate = throttle(
-  (vp: Viewport) => appStore.setState((prev) => ({ ...prev, viewport: vp })),
-  { wait: 16 },
-);
+interface Viewport {
+  x: number;
+  y: number;
+  scale: number;
+}
 
-export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] }) {
+export default function Mindmap() {
   const activeNodeId = useAppStore((s) => s.activeNodeId);
   const activeChatId = useAppStore((s) => s.activeChatId);
   const nodes = useAppStore((s) => s.nodes);
-  const [viewport, setViewport] = useState<Viewport>(appStore.state.viewport);
+  const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const [isPanning, setIsPanning] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{
@@ -44,7 +42,7 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
   const [labelInput, setLabelInput] = useState("");
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const viewportRef = useRef<Viewport>(appStore.state.viewport);
+  const viewportRef = useRef<Viewport>({ x: 0, y: 0, scale: 1 });
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
 
@@ -62,7 +60,6 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
     const newVp: Viewport = { x: rect.width / 2, y: 40, scale: 1 };
     setViewport(newVp);
     viewportRef.current = newVp;
-    appStore.setState((prev) => ({ ...prev, viewport: newVp }));
   }, [activeChatId]);
 
   // Register SVG event listeners for pan and zoom (runs once on mount)
@@ -83,7 +80,6 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
       const newVp: Viewport = { x: newX, y: newY, scale: newScale };
       setViewport(newVp);
       viewportRef.current = newVp;
-      throttledViewportUpdate(newVp);
     }
 
     function handlePointerDown(e: PointerEvent) {
@@ -107,7 +103,6 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
       };
       setViewport(newVp);
       viewportRef.current = newVp;
-      throttledViewportUpdate(newVp);
     }
 
     function handlePointerUp() {
@@ -135,41 +130,34 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
     appStore.setState((prev) => ({ ...prev, activeNodeId: nodeId }));
   }
 
-  const displayNodes = nodes.length > 0 ? nodes : initialNodes;
-
-  const treeData = useMemo(() => {
-    if (displayNodes.length === 0) return null;
+  const treeLayout = useMemo(() => {
+    if (nodes.length === 0) return null;
     try {
       const root = stratify<MindmapNode>()
         .id((d) => d.id)
-        .parentId((d) => d.parentId)(displayNodes);
+        .parentId((d) => d.parentId)(nodes);
 
       const rootLayout = tree<MindmapNode>().nodeSize([NODE_SIZE_X, NODE_SIZE_Y])(root);
-      const descendants = rootLayout.descendants();
-      const links = rootLayout.links();
-
-      // Compute active branch path: set of node IDs from root to activeNodeId
-      const activeBranchIds = new Set<string>();
-      if (activeNodeId) {
-        const activeHierarchyNode = descendants.find((d) => d.data.id === activeNodeId);
-        if (activeHierarchyNode) {
-          let cursor: typeof activeHierarchyNode | null = activeHierarchyNode;
-          while (cursor) {
-            activeBranchIds.add(cursor.data.id);
-            cursor = cursor.parent;
-          }
-        }
-      }
-
-      return { descendants, links, activeBranchIds };
+      return { descendants: rootLayout.descendants(), links: rootLayout.links() };
     } catch {
       return null;
     }
-  }, [displayNodes, activeNodeId]);
+  }, [nodes]);
+
+  const activeBranchIds = useMemo(() => {
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    const ids = new Set<string>();
+    let current = activeNodeId ? nodeMap.get(activeNodeId) : undefined;
+    while (current) {
+      ids.add(current.id);
+      current = current.parentId ? nodeMap.get(current.parentId) : undefined;
+    }
+    return ids;
+  }, [nodes, activeNodeId]);
 
   let treeContent: preact.JSX.Element | null = null;
-  if (treeData) {
-    const { descendants, links, activeBranchIds } = treeData;
+  if (treeLayout) {
+    const { descendants, links } = treeLayout;
     treeContent = (
       <g transform={`translate(${viewport.x},${viewport.y}) scale(${viewport.scale})`}>
         {links.map((link) => {
@@ -298,12 +286,12 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
         <title>Conversation mindmap</title>
         {treeContent}
       </svg>
-      {displayNodes.length === 0 && (
+      {nodes.length === 0 && (
         <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
           <p class="text-sm text-gray-400">No messages yet.</p>
         </div>
       )}
-      {displayNodes.length > 0 && treeContent === null && (
+      {nodes.length > 0 && treeContent === null && (
         <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
           <p class="text-sm text-gray-400">Unable to render tree.</p>
         </div>
@@ -329,7 +317,7 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
       )}
       {editingLabelNodeId &&
         (() => {
-          const editNode = treeData?.descendants.find((d) => d.data.id === editingLabelNodeId);
+          const editNode = treeLayout?.descendants.find((d) => d.data.id === editingLabelNodeId);
           if (!editNode) return null;
           const x = viewport.x + editNode.x * viewport.scale;
           const y = viewport.y + editNode.y * viewport.scale + 30;

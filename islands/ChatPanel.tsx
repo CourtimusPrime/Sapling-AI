@@ -110,10 +110,14 @@ export default function ChatPanel() {
         role === "user"
           ? data
               .filter((n) => n.role === "assistant")
-              .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]
+              .sort((a, b) =>
+                b.createdAt < a.createdAt ? -1 : b.createdAt > a.createdAt ? 1 : 0,
+              )[0]
           : data
               .filter((n) => n.role === "system")
-              .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
+              .sort((a, b) =>
+                b.createdAt < a.createdAt ? -1 : b.createdAt > a.createdAt ? 1 : 0,
+              )[0];
       appStore.setState((prev) => ({
         ...prev,
         activeNodeId: newest?.id ?? prev.activeNodeId,
@@ -306,6 +310,9 @@ export default function ChatPanel() {
                       label="Tokens"
                       value={node.metadata.tokenCount.toLocaleString()}
                     />
+                    {node.metadata.toolsCalled && node.metadata.toolsCalled.length > 0 && (
+                      <MessageMetaRow label="Tools" value={node.metadata.toolsCalled.join(", ")} />
+                    )}
                   </MessageMeta>
                 )}
               </MessageContent>

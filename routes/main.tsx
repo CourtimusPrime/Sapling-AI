@@ -2,12 +2,10 @@ import ChatPanel from "../islands/ChatPanel.tsx";
 import ChatSidebar from "../islands/ChatSidebar.tsx";
 import Mindmap from "../islands/Mindmap.tsx";
 import SettingsPanel from "../islands/SettingsPanel.tsx";
-import type { MindmapNode } from "../types/node.ts";
 import { define } from "../utils.ts";
 
 export const handler = define.handlers({
   GET: (ctx) => {
-    const nodes: MindmapNode[] = [];
     return ctx.render(
       <div class="flex h-screen flex-col bg-white">
         <header class="flex flex-shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-5 py-2.5">
@@ -23,7 +21,7 @@ export const handler = define.handlers({
           </section>
 
           <section class="h-full w-[38%] bg-neutral-50 p-3">
-            <Mindmap nodes={nodes} />
+            <Mindmap />
           </section>
         </div>
       </div>,
