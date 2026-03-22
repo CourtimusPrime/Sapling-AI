@@ -65,6 +65,7 @@ export default function ChatPanel() {
   const [isSystemMode, setIsSystemMode] = useState(false);
   const [expandedMetaId, setExpandedMetaId] = useState<string | null>(null);
   const [showChatSettings, setShowChatSettings] = useState(false);
+  const [temperature, setTemperature] = useState(0.7);
   const [defaultModelInput, setDefaultModelInput] = useState("");
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -206,6 +207,7 @@ export default function ChatPanel() {
           parentNodeId: parentId ?? undefined,
           content,
           ...(provider && modelName ? { provider, model: modelName } : {}),
+          temperature,
         }),
       });
 
@@ -277,46 +279,70 @@ export default function ChatPanel() {
           )}
 
           {path.map((node) => (
-            <Message key={node.id} from={node.role as "user" | "assistant" | "system"}>
-              {node.role !== "user" && (
-                <MessageLabel>{node.role === "system" ? "System" : "Assistant"}</MessageLabel>
-              )}
-              <MessageContent
-                role={node.role as "user" | "assistant" | "system"}
-                class={
-                  node.role === "assistant"
-                    ? "cursor-pointer rounded-lg transition-colors hover:bg-neutral-50 -mx-1 px-1"
-                    : undefined
-                }
-                onClick={() => {
-                  if (node.role === "assistant") {
-                    setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
-                  }
-                }}
-                onKeyDown={(e: KeyboardEvent) => {
-                  if (node.role === "assistant" && (e.key === "Enter" || e.key === " ")) {
-                    setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
-                  }
-                }}
-                tabIndex={node.role === "assistant" ? 0 : undefined}
-              >
-                <MessageText>{node.content}</MessageText>
-                {node.role === "assistant" && node.metadata && expandedMetaId === node.id && (
-                  <MessageMeta>
-                    <MessageMetaRow label="Provider" value={node.metadata.provider} />
-                    <MessageMetaRow label="Model" value={node.metadata.model} />
-                    <MessageMetaRow label="Temperature" value={node.metadata.temperature} />
-                    <MessageMetaRow
-                      label="Tokens"
-                      value={node.metadata.tokenCount.toLocaleString()}
-                    />
-                    {node.metadata.toolsCalled && node.metadata.toolsCalled.length > 0 && (
-                      <MessageMetaRow label="Tools" value={node.metadata.toolsCalled.join(", ")} />
-                    )}
-                  </MessageMeta>
+            <div key={node.id} class="group relative">
+              <Message from={node.role as "user" | "assistant" | "system"}>
+                {node.role !== "user" && (
+                  <MessageLabel>{node.role === "system" ? "System" : "Assistant"}</MessageLabel>
                 )}
-              </MessageContent>
-            </Message>
+                <MessageContent
+                  role={node.role as "user" | "assistant" | "system"}
+                  class={
+                    node.role === "assistant"
+                      ? "cursor-pointer rounded-lg transition-colors hover:bg-neutral-50 -mx-1 px-1"
+                      : undefined
+                  }
+                  onClick={() => {
+                    if (node.role === "assistant") {
+                      setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
+                    }
+                  }}
+                  onKeyDown={(e: KeyboardEvent) => {
+                    if (node.role === "assistant" && (e.key === "Enter" || e.key === " ")) {
+                      setExpandedMetaId((prev) => (prev === node.id ? null : node.id));
+                    }
+                  }}
+                  tabIndex={node.role === "assistant" ? 0 : undefined}
+                >
+                  <MessageText>{node.content}</MessageText>
+                  {node.role === "assistant" && node.metadata && expandedMetaId === node.id && (
+                    <MessageMeta>
+                      <MessageMetaRow label="Provider" value={node.metadata.provider} />
+                      <MessageMetaRow label="Model" value={node.metadata.model} />
+                      <MessageMetaRow label="Temperature" value={node.metadata.temperature} />
+                      <MessageMetaRow
+                        label="Tokens"
+                        value={node.metadata.tokenCount.toLocaleString()}
+                      />
+                      {node.metadata.toolsCalled && node.metadata.toolsCalled.length > 0 && (
+                        <MessageMetaRow
+                          label="Tools"
+                          value={node.metadata.toolsCalled.join(", ")}
+                        />
+                      )}
+                    </MessageMeta>
+                  )}
+                </MessageContent>
+              </Message>
+              {/* Fork button - appears on hover */}
+              <button
+                type="button"
+                class="absolute right-0 top-2 flex h-6 items-center gap-1 rounded-lg px-2 text-[11px] text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-neutral-100 hover:text-neutral-500"
+                onClick={() => appStore.setState((prev) => ({ ...prev, activeNodeId: node.id }))}
+                title="Fork from this message"
+              >
+                <svg
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  class="h-3 w-3"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                >
+                  <path d="M6 2v4M6 6 3 10M6 6l3 4" />
+                </svg>
+                Fork
+              </button>
+            </div>
           ))}
 
           {/* Optimistic pending message */}
@@ -408,6 +434,23 @@ export default function ChatPanel() {
                     placeholder={chatDefaultModel ?? "provider/model-name"}
                     class="w-full rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 font-mono text-xs text-neutral-700 placeholder:text-neutral-300 focus:border-neutral-400 focus:outline-none"
                   />
+                </div>
+                <div>
+                  <label class="mb-1 block text-[11px] text-neutral-500">Temperature</label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={temperature}
+                      onInput={(e) => setTemperature(Number((e.target as HTMLInputElement).value))}
+                      class="flex-1"
+                    />
+                    <span class="w-8 text-center font-mono text-xs text-neutral-600">
+                      {temperature}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

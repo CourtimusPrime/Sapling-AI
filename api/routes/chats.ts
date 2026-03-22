@@ -28,6 +28,7 @@ const sendMessageSchema = z.object({
   provider: z.string().optional(),
   model: z.string().optional(),
   role: z.enum(["user", "system"]).optional().default("user"),
+  temperature: z.number().min(0).max(2).optional().default(0.7),
 });
 
 type ContextMessage = { role: "user" | "assistant" | "system"; content: string };
@@ -239,7 +240,14 @@ chatsRouter.post("/:id/messages", async (c) => {
   }
 
   const chatId = c.req.param("id");
-  const { parentNodeId, content, provider: reqProvider, model: reqModel, role } = parsed.data;
+  const {
+    parentNodeId,
+    content,
+    provider: reqProvider,
+    model: reqModel,
+    role,
+    temperature,
+  } = parsed.data;
 
   const [chatRow] = await db
     .select({ id: chat.id, defaultModel: chat.defaultModel })
@@ -334,7 +342,7 @@ chatsRouter.post("/:id/messages", async (c) => {
     model: llmModel,
     // biome-ignore lint/suspicious/noExplicitAny: CoreMessage is compatible but requires cast
     messages: messages as any,
-    temperature: 0.7,
+    temperature,
   });
 
   c.header("X-Token-Count", String(tokenCount));
@@ -368,7 +376,7 @@ chatsRouter.post("/:id/messages", async (c) => {
       nodeId: assistantNodeId,
       provider,
       model,
-      temperature: 0.7,
+      temperature,
       tokenCount: finalTokenCount,
     });
   });

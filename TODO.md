@@ -1,14 +1,11 @@
 # Sapling TODO
 
-All PRD features implemented. Remaining items are minor polish.
+All PRD features and user stories implemented. Codebase is clean.
 
-## Low Priority (Polish)
+## Remaining (very low priority)
 
-- [ ] **Node metadata: `files` field display**: Schema supports `files` text[] but it's never populated or shown. Lower priority than `toolsCalled` which is now displayed.
-
-- [ ] **Mindmap tooltip positioning with scroll offset**: Tooltip position uses viewport-relative math that may misalign if the mindmap container is offset from the page origin. Edge case.
-
-- [ ] **Module-level QueryClient in ChatSidebar**: During HMR, the old QueryClient cache persists. Minor DX issue only.
+- [ ] **Node metadata: `files` field**: Schema supports `files` text[] but never populated. Deferred until tool-use produces file references.
+- [ ] **Account-level default model**: PRD mentions account-level default, currently only per-chat. Low priority since auth is removed (single-user mode).
 
 ## Completed (this session)
 
@@ -30,7 +27,10 @@ All PRD features implemented. Remaining items are minor polish.
 - [x] Keyboard shortcut for fork (F key)
 - [x] Fix sort comparator in `refetchAndUpdate`
 - [x] Remove Mindmap `initialNodes` prop (dead code)
-- [x] Simplify viewport to state + ref only (removed store duplication)
-- [x] Deduplicate ancestor-walk (separate `activeBranchIds` useMemo)
+- [x] Simplify viewport to state + ref only
+- [x] Deduplicate ancestor-walk
 - [x] Add `toolsCalled` to metadata display + API response
 - [x] Add `getAncestorIds` to `lib/tree.ts`
+- [x] Configurable temperature (slider in chat settings, passed to API)
+- [x] Fork button on each message in ChatPanel (hover to reveal)
+- [x] Tooltip positioning verified correct (false positive)
