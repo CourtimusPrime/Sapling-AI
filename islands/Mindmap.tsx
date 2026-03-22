@@ -1,7 +1,7 @@
 import { throttle } from "@tanstack/pacer";
 // @deno-types="npm:@types/d3-hierarchy@^3.1.7"
 import { stratify, tree } from "d3-hierarchy";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { appStore } from "../stores/chat.ts";
 import type { Viewport } from "../stores/chat.ts";
 
@@ -41,8 +41,7 @@ const throttledViewportUpdate = throttle(
 export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] }) {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(appStore.state.activeNodeId);
   const [activeChatId, setActiveChatId] = useState<string | null>(appStore.state.activeChatId);
-  const [fetchedNodes, setFetchedNodes] = useState<MindmapNode[] | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [nodes, setNodes] = useState<MindmapNode[]>(appStore.state.nodes);
   const [viewport, setViewport] = useState<Viewport>(appStore.state.viewport);
   const [isPanning, setIsPanning] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -64,37 +63,13 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
 
   // Subscribe to appStore
   useEffect(() => {
-    const unsub = appStore.subscribe(({ currentVal, prevVal }) => {
+    const unsub = appStore.subscribe(({ currentVal }) => {
       setActiveNodeId(currentVal.activeNodeId);
       setActiveChatId(currentVal.activeChatId);
-      if (currentVal.nodeRefreshTrigger !== prevVal.nodeRefreshTrigger) {
-        setRefreshKey((k) => k + 1);
-      }
+      setNodes(currentVal.nodes);
     });
     return unsub;
   }, []);
-
-  // Fetch nodes when activeChatId changes or refreshKey increments (nodeRefreshTrigger signal)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey is an intentional trigger dep
-  useEffect(() => {
-    if (!activeChatId) {
-      setFetchedNodes(null);
-      return;
-    }
-    (async () => {
-      try {
-        const res = await fetch(`/api/chats/${activeChatId}/nodes`);
-        if (!res.ok) {
-          setFetchedNodes([]);
-          return;
-        }
-        const data = (await res.json()) as MindmapNode[];
-        setFetchedNodes(data);
-      } catch {
-        setFetchedNodes([]);
-      }
-    })();
-  }, [activeChatId, refreshKey]);
 
   // Center viewport when the active chat changes (activeChatId is intentionally in deps as trigger)
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeChatId triggers the re-center
@@ -178,14 +153,14 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
     appStore.setState((prev) => ({ ...prev, activeNodeId: nodeId }));
   }
 
-  const nodes = fetchedNodes !== null ? fetchedNodes : initialNodes;
+  const displayNodes = nodes.length > 0 ? nodes : initialNodes;
 
-  let treeContent: preact.JSX.Element | null = null;
-  if (nodes.length > 0) {
+  const treeData = useMemo(() => {
+    if (displayNodes.length === 0) return null;
     try {
       const root = stratify<MindmapNode>()
         .id((d) => d.id)
-        .parentId((d) => d.parentId)(nodes);
+        .parentId((d) => d.parentId)(displayNodes);
 
       const rootLayout = tree<MindmapNode>().nodeSize([NODE_SIZE_X, NODE_SIZE_Y])(root);
       const descendants = rootLayout.descendants();
@@ -204,102 +179,108 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
         }
       }
 
-      treeContent = (
-        <g transform={`translate(${viewport.x},${viewport.y}) scale(${viewport.scale})`}>
-          {links.map((link) => {
-            const isOnActivePath =
-              activeBranchIds.has(link.source.data.id) && activeBranchIds.has(link.target.data.id);
-            return (
-              <line
-                key={`${link.source.data.id}-${link.target.data.id}`}
-                x1={link.source.x}
-                y1={link.source.y}
-                x2={link.target.x}
-                y2={link.target.y}
-                stroke={isOnActivePath ? ACTIVE_PATH_COLOR : INACTIVE_LINK_COLOR}
-                stroke-width={isOnActivePath ? 3 : 1.5}
-              />
-            );
-          })}
-          {descendants.map((node) => {
-            const isActive = node.data.id === activeNodeId;
-            const isOnActivePath = activeBranchIds.has(node.data.id);
-            const isHovered = node.data.id === hoveredNodeId;
-            const fill = ROLE_COLORS[node.data.role];
-            const label = node.data.content.substring(0, 40);
-            return (
-              <g
-                key={node.data.id}
-                transform={`translate(${node.x},${node.y})`}
-                data-node-id={node.data.id}
-                tabIndex={0}
-                aria-label={`${node.data.role}: ${label}`}
-                style={{ cursor: "pointer", opacity: isOnActivePath ? 1 : INACTIVE_NODE_OPACITY }}
-                onClick={() => handleNodeClick(node.data.id)}
-                onKeyDown={(e: KeyboardEvent) => {
-                  if (e.key === "Enter" || e.key === " ") handleNodeClick(node.data.id);
-                }}
-                onMouseEnter={() => {
-                  setHoveredNodeId(node.data.id);
-                  if (node.data.role === "assistant" && node.data.metadata) {
-                    const vp = viewportRef.current;
-                    setTooltip({
-                      metadata: node.data.metadata,
-                      x: vp.x + node.x * vp.scale,
-                      y: vp.y + node.y * vp.scale,
-                    });
-                  }
-                }}
-                onMouseLeave={() => {
-                  setHoveredNodeId(null);
-                  setTooltip(null);
-                }}
-              >
-                {isActive && <circle r={20} fill="none" stroke="#1d4ed8" stroke-width={3} />}
-                <circle r={isActive ? 16 : 12} fill={fill} />
-                {node.data.role === "system" && (
-                  <text
-                    text-anchor="middle"
-                    dominant-baseline="central"
-                    font-size={isActive ? "12" : "9"}
-                    fill="white"
-                    style={{ pointerEvents: "none" }}
-                  >
-                    ⚙
-                  </text>
-                )}
-                {isHovered && (
-                  <g
-                    transform="translate(18, -18)"
-                    tabIndex={0}
-                    aria-label="Fork from this node"
-                    style={{ cursor: "pointer" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleNodeClick(node.data.id);
-                    }}
-                    onKeyDown={(e: KeyboardEvent) => {
-                      if (e.key === "Enter" || e.key === " ") handleNodeClick(node.data.id);
-                    }}
-                  >
-                    <circle r={9} fill="#3b82f6" stroke="white" stroke-width={1.5} />
-                    <path
-                      d="M 0 -4 L 0 0 M 0 0 L -3 4 M 0 0 L 3 4"
-                      stroke="white"
-                      stroke-width={2}
-                      fill="none"
-                      style={{ pointerEvents: "none" }}
-                    />
-                  </g>
-                )}
-              </g>
-            );
-          })}
-        </g>
-      );
+      return { descendants, links, activeBranchIds };
     } catch {
-      treeContent = null;
+      return null;
     }
+  }, [displayNodes, activeNodeId]);
+
+  let treeContent: preact.JSX.Element | null = null;
+  if (treeData) {
+    const { descendants, links, activeBranchIds } = treeData;
+    treeContent = (
+      <g transform={`translate(${viewport.x},${viewport.y}) scale(${viewport.scale})`}>
+        {links.map((link) => {
+          const isOnActivePath =
+            activeBranchIds.has(link.source.data.id) && activeBranchIds.has(link.target.data.id);
+          return (
+            <line
+              key={`${link.source.data.id}-${link.target.data.id}`}
+              x1={link.source.x}
+              y1={link.source.y}
+              x2={link.target.x}
+              y2={link.target.y}
+              stroke={isOnActivePath ? ACTIVE_PATH_COLOR : INACTIVE_LINK_COLOR}
+              stroke-width={isOnActivePath ? 3 : 1.5}
+            />
+          );
+        })}
+        {descendants.map((node) => {
+          const isActive = node.data.id === activeNodeId;
+          const isOnActivePath = activeBranchIds.has(node.data.id);
+          const isHovered = node.data.id === hoveredNodeId;
+          const fill = ROLE_COLORS[node.data.role];
+          const label = node.data.content.substring(0, 40);
+          return (
+            <g
+              key={node.data.id}
+              transform={`translate(${node.x},${node.y})`}
+              data-node-id={node.data.id}
+              tabIndex={0}
+              aria-label={`${node.data.role}: ${label}`}
+              style={{ cursor: "pointer", opacity: isOnActivePath ? 1 : INACTIVE_NODE_OPACITY }}
+              onClick={() => handleNodeClick(node.data.id)}
+              onKeyDown={(e: KeyboardEvent) => {
+                if (e.key === "Enter" || e.key === " ") handleNodeClick(node.data.id);
+              }}
+              onMouseEnter={() => {
+                setHoveredNodeId(node.data.id);
+                if (node.data.role === "assistant" && node.data.metadata) {
+                  const vp = viewportRef.current;
+                  setTooltip({
+                    metadata: node.data.metadata,
+                    x: vp.x + node.x * vp.scale,
+                    y: vp.y + node.y * vp.scale,
+                  });
+                }
+              }}
+              onMouseLeave={() => {
+                setHoveredNodeId(null);
+                setTooltip(null);
+              }}
+            >
+              {isActive && <circle r={20} fill="none" stroke="#1d4ed8" stroke-width={3} />}
+              <circle r={isActive ? 16 : 12} fill={fill} />
+              {node.data.role === "system" && (
+                <text
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                  font-size={isActive ? "12" : "9"}
+                  fill="white"
+                  style={{ pointerEvents: "none" }}
+                >
+                  \u2699
+                </text>
+              )}
+              {isHovered && (
+                <g
+                  transform="translate(18, -18)"
+                  tabIndex={0}
+                  aria-label="Fork from this node"
+                  style={{ cursor: "pointer" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleNodeClick(node.data.id);
+                  }}
+                  onKeyDown={(e: KeyboardEvent) => {
+                    if (e.key === "Enter" || e.key === " ") handleNodeClick(node.data.id);
+                  }}
+                >
+                  <circle r={9} fill="#3b82f6" stroke="white" stroke-width={1.5} />
+                  <path
+                    d="M 0 -4 L 0 0 M 0 0 L -3 4 M 0 0 L 3 4"
+                    stroke="white"
+                    stroke-width={2}
+                    fill="none"
+                    style={{ pointerEvents: "none" }}
+                  />
+                </g>
+              )}
+            </g>
+          );
+        })}
+      </g>
+    );
   }
 
   return (
@@ -313,12 +294,12 @@ export default function Mindmap({ nodes: initialNodes }: { nodes: MindmapNode[] 
         <title>Conversation mindmap</title>
         {treeContent}
       </svg>
-      {nodes.length === 0 && (
+      {displayNodes.length === 0 && (
         <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
           <p class="text-sm text-gray-400">No messages yet.</p>
         </div>
       )}
-      {nodes.length > 0 && treeContent === null && (
+      {displayNodes.length > 0 && treeContent === null && (
         <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
           <p class="text-sm text-gray-400">Unable to render tree.</p>
         </div>

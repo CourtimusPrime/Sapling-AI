@@ -1,5 +1,5 @@
 import { throttle } from "@tanstack/pacer";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   Conversation,
   ConversationContent,
@@ -22,20 +22,8 @@ import {
   PromptInputTextarea,
 } from "../components/ai-elements/prompt-input.tsx";
 import { SkeletonBlock } from "../components/ai-elements/shimmer.tsx";
-import { appStore } from "../stores/chat.ts";
-import type { MindmapNode } from "./Mindmap.tsx";
-
-function getAncestorPath(nodes: MindmapNode[], activeNodeId: string | null): MindmapNode[] {
-  if (!activeNodeId || nodes.length === 0) return [];
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const path: MindmapNode[] = [];
-  let current: MindmapNode | undefined = nodeMap.get(activeNodeId);
-  while (current) {
-    path.unshift(current);
-    current = current.parentId ? nodeMap.get(current.parentId) : undefined;
-  }
-  return path;
-}
+import { getAncestorPath, getParentIds } from "../lib/tree.ts";
+import { type MindmapNode, appStore, fetchNodes } from "../stores/chat.ts";
 
 function TokenBar({ count, limit }: { count: number; limit: number }) {
   const pct = Math.min((count / limit) * 100, 100);
@@ -67,7 +55,7 @@ export default function ChatPanel() {
   const [chatDefaultModel, setChatDefaultModel] = useState<string | null>(
     appStore.state.chatDefaultModel,
   );
-  const [nodes, setNodes] = useState<MindmapNode[]>([]);
+  const [nodes, setNodes] = useState<MindmapNode[]>(appStore.state.nodes);
   const [input, setInput] = useState("");
   const [model, setModel] = useState(appStore.state.chatDefaultModel ?? "");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -91,6 +79,7 @@ export default function ChatPanel() {
       setActiveChatId(currentVal.activeChatId);
       setActiveNodeId(currentVal.activeNodeId);
       setChatDefaultModel(currentVal.chatDefaultModel);
+      setNodes(currentVal.nodes);
     });
     return unsub;
   }, []);
@@ -103,30 +92,10 @@ export default function ChatPanel() {
     setDefaultModelInput(appStore.state.chatDefaultModel ?? "");
   }, [activeChatId]);
 
-  useEffect(() => {
-    if (!activeChatId) {
-      setNodes([]);
-      return;
-    }
-    (async () => {
-      try {
-        const res = await fetch(`/api/chats/${activeChatId}/nodes`);
-        if (!res.ok) {
-          setNodes([]);
-          return;
-        }
-        const data = (await res.json()) as MindmapNode[];
-        setNodes(data);
-      } catch {
-        setNodes([]);
-      }
-    })();
-  }, [activeChatId]);
-
   // biome-ignore lint/correctness/useExhaustiveDependencies: bottomRef is stable
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [nodes, pendingUser, streamContent]);
+    bottomRef.current?.scrollIntoView({ behavior: isStreaming ? "instant" : "smooth" });
+  }, [nodes, pendingUser, isStreaming]);
 
   if (!activeChatId) {
     return (
@@ -138,37 +107,30 @@ export default function ChatPanel() {
     );
   }
 
-  const path = getAncestorPath(nodes, activeNodeId);
-  const childParentIds = new Set(
-    nodes.map((n) => n.parentId).filter((id): id is string => id !== null),
-  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: memoize tree computations
+  const path = useMemo(() => getAncestorPath(nodes, activeNodeId), [nodes, activeNodeId]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: memoize parent set
+  const childParentIds = useMemo(() => getParentIds(nodes), [nodes]);
   const activeNode = activeNodeId ? nodes.find((n) => n.id === activeNodeId) : undefined;
   const isForkingFromNonLeaf = !!activeNode && childParentIds.has(activeNodeId ?? "");
 
   async function refetchAndUpdate(chatId: string, role: "user" | "system") {
     try {
-      const res = await fetch(`/api/chats/${chatId}/nodes`);
-      if (res.ok) {
-        const data = (await res.json()) as MindmapNode[];
-        setNodes(data);
-        const newest =
-          role === "user"
-            ? data
-                .filter((n) => n.role === "assistant")
-                .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]
-            : data
-                .filter((n) => n.role === "system")
-                .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
-        appStore.setState((prev) => ({
-          ...prev,
-          activeNodeId: newest?.id ?? prev.activeNodeId,
-          nodeRefreshTrigger: prev.nodeRefreshTrigger + 1,
-        }));
-      } else {
-        appStore.setState((prev) => ({ ...prev, nodeRefreshTrigger: prev.nodeRefreshTrigger + 1 }));
-      }
+      const data = await fetchNodes(chatId);
+      const newest =
+        role === "user"
+          ? data
+              .filter((n) => n.role === "assistant")
+              .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]
+          : data
+              .filter((n) => n.role === "system")
+              .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0];
+      appStore.setState((prev) => ({
+        ...prev,
+        activeNodeId: newest?.id ?? prev.activeNodeId,
+      }));
     } catch {
-      appStore.setState((prev) => ({ ...prev, nodeRefreshTrigger: prev.nodeRefreshTrigger + 1 }));
+      // fetchNodes already handles store update on error
     }
   }
 
@@ -436,7 +398,7 @@ export default function ChatPanel() {
                       disabled={isSavingDefault}
                       class="rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-40"
                     >
-                      {isSavingDefault ? "…" : "Save"}
+                      {isSavingDefault ? "\u2026" : "Save"}
                     </button>
                   </div>
                 </div>
@@ -460,7 +422,7 @@ export default function ChatPanel() {
           {isForkingFromNonLeaf && activeNode && (
             <div class="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
               <span class="font-medium">Branching from:</span>
-              {`${activeNode.content.substring(0, 48)}${activeNode.content.length > 48 ? "…" : ""}`}
+              {`${activeNode.content.substring(0, 48)}${activeNode.content.length > 48 ? "\u2026" : ""}`}
             </div>
           )}
 
@@ -473,7 +435,7 @@ export default function ChatPanel() {
               value={input}
               disabled={isStreaming}
               rows={2}
-              placeholder={isSystemMode ? "System instruction…" : "Message…"}
+              placeholder={isSystemMode ? "System instruction\u2026" : "Message\u2026"}
               onValueChange={setInput}
               onSubmit={handleSend}
             />

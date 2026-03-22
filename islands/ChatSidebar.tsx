@@ -6,37 +6,14 @@ import {
   useQueryClient,
 } from "@tanstack/preact-query";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { appStore } from "../stores/chat.ts";
-import type { MindmapNode } from "./Mindmap.tsx";
+import { getLatestLeafId } from "../lib/tree.ts";
+import { appStore, fetchNodes } from "../stores/chat.ts";
 
 interface Chat {
   id: string;
   title: string | null;
   defaultModel: string | null;
   createdAt: string;
-}
-
-/**
- * Fetch nodes for a chat and return the id of the latest leaf node.
- * A leaf node is one whose id does not appear as any other node's parentId.
- * Among leaves, the most recent by createdAt is picked.
- */
-async function fetchLatestLeafNodeId(chatId: string): Promise<string | null> {
-  try {
-    const res = await fetch(`/api/chats/${chatId}/nodes`);
-    if (!res.ok) return null;
-    const nodes: MindmapNode[] = await res.json();
-    if (nodes.length === 0) return null;
-
-    const parentIds = new Set(nodes.map((n) => n.parentId).filter(Boolean));
-    const leaves = nodes.filter((n) => !parentIds.has(n.id));
-    if (leaves.length === 0) return null;
-
-    leaves.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return leaves[0].id;
-  } catch {
-    return null;
-  }
 }
 
 function formatDate(createdAt: string): string {
@@ -93,7 +70,8 @@ function SidebarInner() {
       activeNodeId: null,
       chatDefaultModel: firstChat.defaultModel,
     }));
-    fetchLatestLeafNodeId(firstChat.id).then((leafId) => {
+    fetchNodes(firstChat.id).then((nodes) => {
+      const leafId = getLatestLeafId(nodes);
       if (leafId && appStore.state.activeChatId === firstChat.id) {
         appStore.setState((prev) => ({
           ...prev,
@@ -181,7 +159,8 @@ function SidebarInner() {
       activeNodeId: null,
       chatDefaultModel: selectedChat.defaultModel,
     }));
-    const leafId = await fetchLatestLeafNodeId(selectedChat.id);
+    const nodes = await fetchNodes(selectedChat.id);
+    const leafId = getLatestLeafId(nodes);
     if (leafId && appStore.state.activeChatId === selectedChat.id) {
       appStore.setState((prev) => ({
         ...prev,
@@ -267,7 +246,7 @@ function SidebarInner() {
                     disabled={renameMutation.isPending || !renameValue.trim()}
                     class="text-[11px] font-medium text-black disabled:opacity-40 hover:underline"
                   >
-                    {renameMutation.isPending ? "Saving…" : "Save"}
+                    {renameMutation.isPending ? "Saving..." : "Save"}
                   </button>
                   <button
                     type="button"
@@ -297,7 +276,7 @@ function SidebarInner() {
                     disabled={deleteMutation.isPending}
                     class="text-[11px] font-medium text-red-500 disabled:opacity-50 hover:underline"
                   >
-                    {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                    {deleteMutation.isPending ? "Deleting..." : "Delete"}
                   </button>
                   <button
                     type="button"
